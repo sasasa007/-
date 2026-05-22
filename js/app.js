@@ -30,6 +30,18 @@ function tripApp() {
     // 시계 (도구)
     clock: { london: '', seoul: '' },
 
+    // Butler AI
+    butlerMessages: [],
+    butlerInput: '',
+    butlerLoading: false,
+    butlerQuickQ: [
+      '오늘 점심 어디가 좋아?',
+      '비 오면 실내 어디?',
+      '자녀가 좋아할 곳 추천해줘',
+      '호텔 근처 저녁 식사',
+      '내일 일정 조언해줘'
+    ],
+
     // ---- 초기화 ----
     async init() {
       this.store = TripStorage.read();
@@ -231,6 +243,107 @@ function tripApp() {
     },
 
     // 전화 걸기
-    call(num) { window.location.href = 'tel:' + num.replace(/\s/g, ''); }
+    call(num) { window.location.href = 'tel:' + num.replace(/\s/g, ''); },
+
+    // ---- Travel Butler ----
+    closeButler() {
+      this.butlerSheet = false;
+    },
+
+    async butlerSend(text) {
+      if (!text || !text.trim() || this.butlerLoading) return;
+      const query = text.trim();
+      this.butlerInput = '';
+      this.butlerLoading = true;
+
+      // 사용자 메시지 추가
+      this.butlerMessages.push({ role: 'user', text: query });
+
+      // 로딩 메시지 추가
+      const loadingIdx = this.butlerMessages.length;
+      this.butlerMessages.push({ role: 'butler', loading: true });
+      this.$nextTick(() => this.scrollButler());
+
+      // 컨텍스트 구성
+      const today = this.cd.tripDay ? this.days.find(d => d.day === this.cd.tripDay) : null;
+      const context = {
+        currentDay: this.cd.tripDay || null,
+        dayInfo: today || null,
+        selectedDayNum: this.dayNum,
+        tripState: this.cd.state,
+        currentActivities: this.dayActivities(this.dayNum).map(a => a.nameKo || a.name),
+        confirmedToday: this.confirmedForDay(this.dayNum)
+      };
+
+      // Web Search 필요 여부 판단 (실시간 정보 키워드)
+      const webKeywords = ['지금', '현재', '오늘', '날씨', '운영', '혼잡', '줄', '최신', '실시간', '몇시'];
+      const needsWeb = webKeywords.some(k => query.includes(k));
+
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, context, useWebSearch: needsWeb })
+        });
+
+        const data = await res.json();
+
+        // 로딩 메시지 교체
+        this.butlerMessages.splice(loadingIdx, 1, {
+          role: 'butler',
+          loading: false,
+          intro: data.intro || '',
+          answer: data.answer || '',
+          cards: data.cards || [],
+          error: data.error || null
+        });
+      } catch (e) {
+        this.butlerMessages.splice(loadingIdx, 1, {
+          role: 'butler',
+          loading: false,
+          error: '연결 오류가 발생했어요. 인터넷 상태를 확인해 주세요.'
+        });
+      } finally {
+        this.butlerLoading = false;
+        this.$nextTick(() => this.scrollButler());
+      }
+    },
+
+    scrollButler() {
+      const el = this.$refs.butlerScroll;
+      if (el) el.scrollTop = el.scrollHeight;
+    },
+
+    openMapCoord(action) {
+      if (!action) return;
+      window.open('https://www.google.com/maps/dir/?api=1&destination=' + action.lat + ',' + action.lng, '_blank');
+    },
+
+    // Butler 카드를 activities에 임시 추가 후 Day에 담기
+    addButlerCard(card) {
+      if (!card.id) return;
+      // 아직 없으면 activities 배열에 추가 (임시 카드)
+      if (!this.activities.find(a => a.id === card.id)) {
+        this.activities.push({
+          id: card.id,
+          type: 'attraction',
+          zone: 'A',
+          name: card.name || card.nameKo,
+          nameKo: card.nameKo || card.name,
+          emoji: card.emoji || '📍',
+          rating: card.rating,
+          price: card.price,
+          duration: card.duration,
+          address: card.address,
+          nearestTube: card.nearestTube,
+          tags: card.tags || [],
+          kidsFriendly: card.kidsFriendly || 3,
+          curatedReason: card.reason || '',
+          etiquette: [],
+          curated: false
+        });
+      }
+      this.toggleActivity(this.dayNum, card.id);
+    }
   };
 }

@@ -378,17 +378,127 @@
     </div>
   </div>
 
-  <!-- ===== Butler 시트 (Phase 2 안내) ===== -->
-  <div x-show="butlerSheet" class="sheet-backdrop" @click.self="butlerSheet = false" x-transition.opacity>
-    <div class="sheet" style="text-align:center;">
+  <!-- ===== Butler 시트 (AI 채팅) ===== -->
+  <div x-show="butlerSheet" class="sheet-backdrop" @click.self="closeButler()" x-transition.opacity>
+    <div class="sheet butler-sheet">
       <div class="grip"></div>
-      <div style="font-size:40px;">🎩</div>
-      <div style="font-weight:800; font-size:18px; margin:8px 0;">Travel Butler</div>
-      <div style="font-size:14px; color:var(--text-secondary); line-height:1.5;">
-        자연어로 묻고 카드로 답하는 AI 여행 집사는<br><b>Phase 2 (AI 통합)</b>에서 만나요.<br>
-        지금은 Zone에서 큐레이션 활동을 자유롭게 담아보세요!
+
+      <!-- 헤더 -->
+      <div class="butler-header">
+        <span style="font-size:24px;">🎩</span>
+        <div>
+          <div style="font-weight:800; font-size:16px;">Travel Butler</div>
+          <div style="font-size:11px; color:var(--text-light);">AI 여행 집사 · 무엇이든 물어보세요</div>
+        </div>
+        <button @click="closeButler()" style="margin-left:auto; font-size:22px; color:var(--text-light); background:none; border:none; cursor:pointer;">✕</button>
       </div>
-      <button class="btn btn-primary btn-block" style="margin-top:18px;" @click="butlerSheet = false">알겠어요</button>
+
+      <!-- 빠른 질문 (대화 없을 때만) -->
+      <template x-if="butlerMessages.length === 0">
+        <div>
+          <div style="font-size:12px; color:var(--text-light); margin-bottom:8px;">💡 빠른 질문</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+            <template x-for="q in butlerQuickQ" :key="q">
+              <button class="chip active" style="font-size:12px;" @click="butlerSend(q)" x-text="q"></button>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- 대화 내역 -->
+      <div class="butler-messages" x-ref="butlerScroll">
+        <template x-for="(msg, i) in butlerMessages" :key="i">
+          <div>
+            <!-- 사용자 메시지 -->
+            <template x-if="msg.role === 'user'">
+              <div class="bm-user">
+                <div class="bm-bubble user" x-text="msg.text"></div>
+              </div>
+            </template>
+
+            <!-- Butler 응답 -->
+            <template x-if="msg.role === 'butler'">
+              <div class="bm-butler">
+                <span style="font-size:20px; flex-shrink:0;">🎩</span>
+                <div style="flex:1;">
+                  <!-- 로딩 -->
+                  <template x-if="msg.loading">
+                    <div class="bm-bubble butler loading">
+                      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                    </div>
+                  </template>
+                  <!-- 텍스트 답변 -->
+                  <template x-if="!msg.loading && msg.answer">
+                    <div>
+                      <div class="bm-intro" x-text="msg.intro"></div>
+                      <div class="bm-bubble butler" x-text="msg.answer"></div>
+                    </div>
+                  </template>
+                  <!-- 카드 답변 -->
+                  <template x-if="!msg.loading && msg.cards && msg.cards.length">
+                    <div>
+                      <div class="bm-intro" x-text="msg.intro"></div>
+                      <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+                        <template x-for="(c, ci) in msg.cards" :key="ci">
+                          <div class="butler-card">
+                            <div class="bc-top">
+                              <span style="font-size:28px;" x-text="c.emoji || '📍'"></span>
+                              <div style="flex:1;">
+                                <div style="font-weight:700; font-size:14px;" x-text="c.nameKo || c.name"></div>
+                                <div style="font-size:11px; color:var(--text-light);" x-text="c.name"></div>
+                              </div>
+                              <div style="text-align:right;">
+                                <div class="stars" style="font-size:12px;" x-text="c.rating ? '★ ' + c.rating : ''"></div>
+                                <div style="font-size:11px; color:var(--text-light);" x-text="c.price || ''"></div>
+                              </div>
+                            </div>
+                            <div style="font-size:12px; color:var(--text-secondary); margin:6px 0;" x-text="c.reason"></div>
+                            <template x-if="c.tip">
+                              <div style="font-size:11px; color:var(--warning); margin-bottom:6px;">💡 <span x-text="c.tip"></span></div>
+                            </template>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                              <template x-for="t in (c.tags || [])" :key="t">
+                                <span class="tag" x-text="t"></span>
+                              </template>
+                            </div>
+                            <div class="btn-row" style="margin-top:10px;">
+                              <template x-if="c.actions && c.actions.find(a => a.type === 'map')">
+                                <button class="btn btn-sm btn-outline" @click="openMapCoord(c.actions.find(a=>a.type==='map'))">🗺️ 지도</button>
+                              </template>
+                              <button x-show="c.id && !isAdded(dayNum, c.id)" class="btn btn-sm btn-primary"
+                                @click="addButlerCard(c)">Day <span x-text="dayNum"></span>에 추가 +</button>
+                              <button x-show="c.id && isAdded(dayNum, c.id)" class="btn btn-sm btn-warm"
+                                @click="toggleActivity(dayNum, c.id)">✓ 추가됨</button>
+                            </div>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                  <!-- 오류 -->
+                  <template x-if="!msg.loading && msg.error">
+                    <div class="bm-bubble butler" style="color:var(--error);" x-text="msg.error"></div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+
+      <!-- 입력창 -->
+      <div class="butler-input-row">
+        <input class="butler-text-input" type="text" placeholder="무엇이든 물어보세요…"
+          x-model="butlerInput"
+          @keydown.enter="butlerSend(butlerInput)"
+          :disabled="butlerLoading" />
+        <button class="btn btn-primary" style="flex-shrink:0; padding:10px 16px;"
+          @click="butlerSend(butlerInput)"
+          :disabled="butlerLoading || !butlerInput.trim()">
+          <span x-show="!butlerLoading">전송</span>
+          <span x-show="butlerLoading">…</span>
+        </button>
+      </div>
     </div>
   </div>
 

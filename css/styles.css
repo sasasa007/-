@@ -502,3 +502,107 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .card:hover, .day-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 22px var(--shadow); }
   .activity-card:hover { transform: translateY(-2px); }
 }
+
+/* ========== Travel Butler UI ========== */
+.butler-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+.butler-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* 대화 영역 */
+.butler-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0 8px;
+  min-height: 80px;
+  max-height: 52vh;
+}
+
+/* 사용자 메시지 */
+.bm-user { display: flex; justify-content: flex-end; }
+.bm-bubble.user {
+  background: var(--primary);
+  color: white;
+  border-radius: 16px 16px 4px 16px;
+  padding: 10px 14px;
+  font-size: 14px;
+  max-width: 80%;
+}
+
+/* Butler 메시지 */
+.bm-butler { display: flex; gap: 8px; align-items: flex-start; }
+.bm-bubble.butler {
+  background: var(--bg-section);
+  border-radius: 4px 16px 16px 16px;
+  padding: 10px 14px;
+  font-size: 14px;
+  max-width: 90%;
+  line-height: 1.55;
+}
+.bm-intro {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+/* 로딩 점 */
+.bm-bubble.loading { display: flex; gap: 4px; align-items: center; padding: 12px 16px; }
+.dot {
+  width: 7px; height: 7px;
+  background: var(--text-light);
+  border-radius: 50%;
+  animation: dotBounce 1.2s infinite;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* Butler 카드 */
+.butler-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.bc-top { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 6px; }
+
+/* 입력창 */
+.butler-input-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.butler-text-input {
+  flex: 1;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text-primary);
+  outline: none;
+  font-family: var(--font-ko);
+}
+.butler-text-input:focus { border-color: var(--primary); }
+.butler-text-input:disabled { opacity: 0.5; }
