@@ -53,21 +53,105 @@
         <div class="dday-sub" x-text="cd.sub"></div>
       </div>
 
+      <!-- ▸ 날씨 + 환율 위젯 -->
+      <div class="widget-row">
+        <!-- 날씨 -->
+        <div class="widget-card weather-card">
+          <div class="widget-label">🇬🇧 런던 날씨</div>
+          <template x-if="weather.loaded">
+            <div class="widget-body">
+              <span class="w-icon" x-text="weather.icon"></span>
+              <span class="w-temp" x-text="weather.tempC + '°C'"></span>
+              <span class="w-desc" x-text="weather.desc"></span>
+              <div class="w-meta">
+                <span x-text="'💧' + weather.humidity + '%'"></span>
+                <span x-text="'💨' + weather.wind + 'km/h'"></span>
+              </div>
+            </div>
+          </template>
+          <template x-if="!weather.loaded">
+            <div class="widget-loading">불러오는 중…</div>
+          </template>
+        </div>
+
+        <!-- 환율 -->
+        <div class="widget-card currency-card">
+          <div class="widget-label">💷 GBP → KRW</div>
+          <template x-if="currency.loaded">
+            <div class="widget-body">
+              <span class="c-rate" x-text="'₩' + currency.rate.toLocaleString()"></span>
+              <span class="c-unit">/ £1</span>
+              <div class="c-date" x-text="currency.date + ' 기준'"></div>
+            </div>
+          </template>
+          <template x-if="!currency.loaded">
+            <div class="widget-loading">불러오는 중…</div>
+          </template>
+        </div>
+      </div>
+
       <div class="section-title">🎩 Travel Butler</div>
-      <button class="butler-input btn-block" @click="butlerSheet = true">
-        <span class="ph">무엇을 도와드릴까요?</span>
-        <span class="soon">Phase 2</span>
+      <button class="butler-btn-home btn-block" @click="butlerSheet = true">
+        <span class="butler-btn-icon">🎩</span>
+        <div class="butler-btn-text">
+          <span class="butler-btn-title">무엇을 도와드릴까요?</span>
+          <span class="butler-btn-sub">AI 맞춤 추천 · 경로 · 실시간 정보</span>
+        </div>
+        <span class="butler-btn-arrow">›</span>
       </button>
 
-      <div class="section-title">🌟 오늘의 추천</div>
-      <div class="card" style="display:flex; gap:12px; align-items:center;">
-        <span style="font-size:32px;">🤖</span>
-        <div>
-          <div style="font-weight:700;">AI 맞춤 추천</div>
-          <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
-            날씨·컨디션·일정을 분석한 오늘의 추천은 Phase 2(AI 통합)에서 제공돼요.
+      <!-- ▸ TfL 튜브 상태 -->
+      <div class="section-title" style="display:flex; align-items:center; justify-content:space-between;">
+        <span>🚇 튜브 현황</span>
+        <span x-show="tfl.loaded" style="font-size:11px; color:var(--text-light); font-weight:400;">5분마다 갱신</span>
+      </div>
+
+      <div class="tfl-widget card">
+        <!-- 로딩 -->
+        <template x-if="!tfl.loaded">
+          <div class="widget-loading" style="padding:4px 0;">노선 상태 불러오는 중…</div>
+        </template>
+
+        <!-- 로드 완료 -->
+        <template x-if="tfl.loaded">
+          <div>
+            <!-- 문제 없으면 한 줄 요약 -->
+            <template x-if="tfl.lines.every(l => l.ok)">
+              <div class="tfl-all-good">
+                <span style="font-size:20px;">✅</span>
+                <span>전 노선 정상 운행 중</span>
+              </div>
+            </template>
+
+            <!-- 문제 있으면 노선별 배지 -->
+            <template x-if="!tfl.lines.every(l => l.ok)">
+              <div>
+                <!-- 문제 노선 먼저 -->
+                <template x-for="line in tfl.lines.filter(l => !l.ok)" :key="line.id">
+                  <div class="tfl-issue-row">
+                    <span class="tfl-dot" :style="'background:' + line.color"></span>
+                    <span class="tfl-name" x-text="line.name"></span>
+                    <span class="tfl-status-badge issue" x-text="tflStatusEmoji(line.severity) + ' ' + line.desc"></span>
+                  </div>
+                </template>
+                <!-- 정상 노선은 축약 -->
+                <div class="tfl-ok-summary">
+                  <template x-for="line in tfl.lines.filter(l => l.ok)" :key="line.id">
+                    <span class="tfl-ok-chip" :style="'background:' + line.color" x-text="line.name"></span>
+                  </template>
+                  <span style="font-size:11px; color:var(--text-light);">정상</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- 전체 배지 (항상 표시) -->
+            <div class="tfl-chips" x-show="tfl.lines.every(l => l.ok)">
+              <template x-for="line in tfl.lines" :key="line.id">
+                <span class="tfl-ok-chip" :style="'background:' + line.color" x-text="line.name"></span>
+              </template>
+            </div>
           </div>
-        </div>
+        </template>
       </div>
 
       <div class="section-title">🗓️ 일정 (Day 1–8)</div>
@@ -139,6 +223,73 @@
           </div>
         </template>
       </div>
+
+      <!-- 경로 최적화 버튼 -->
+      <template x-if="dayActivities(dayNum).length > 0">
+        <div>
+          <button class="route-optimize-btn"
+            :class="{ loading: routeLoading && routeDayNum === dayNum }"
+            :disabled="routeLoading"
+            @click="optimizeRoute(dayNum)">
+            <span x-show="!routeLoading || routeDayNum !== dayNum">🗺️ AI 동선 최적화</span>
+            <span x-show="routeLoading && routeDayNum === dayNum">
+              <span class="dot-pulse"></span> Opus가 동선 계산 중…
+            </span>
+          </button>
+
+          <!-- 최적화 결과 -->
+          <template x-if="routeResult && routeDayNum === dayNum && !routeResult.error">
+            <div class="route-result">
+              <div class="route-result-header">
+                <span class="route-result-intro" x-text="routeResult.intro"></span>
+                <button class="route-close" @click="clearRoute()">✕</button>
+              </div>
+
+              <!-- 튜브 노선 뱃지 -->
+              <template x-if="routeResult.tubeLines && routeResult.tubeLines.length">
+                <div class="route-tube-row">
+                  <span style="font-size:12px; color:var(--text-light);">이용 노선:</span>
+                  <template x-for="line in routeResult.tubeLines" :key="line">
+                    <span class="route-tube-chip" x-text="line"></span>
+                  </template>
+                </div>
+              </template>
+
+              <!-- 타임라인 -->
+              <div class="route-timeline">
+                <template x-for="(item, idx) in routeResult.timeline" :key="idx">
+                  <div class="rt-item">
+                    <div class="rt-left">
+                      <span class="rt-time" x-text="item.time"></span>
+                      <div class="rt-line" x-show="idx < routeResult.timeline.length - 1"></div>
+                    </div>
+                    <div class="rt-body">
+                      <div class="rt-name">
+                        <span x-text="item.emoji || routeTypeIcon(item.type)"></span>
+                        <span x-text="item.activity"></span>
+                        <span class="rt-duration" x-text="item.duration"></span>
+                      </div>
+                      <div class="rt-transport" x-show="item.transport" x-text="'🚶 ' + item.transport"></div>
+                      <div class="rt-tip" x-show="item.tip" x-text="'💡 ' + item.tip"></div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- 총 시간 + 조언 -->
+              <div class="route-summary">
+                <span class="route-total" x-text="'⏱ ' + routeResult.totalTime"></span>
+                <p class="route-advice" x-text="routeResult.advice"></p>
+              </div>
+            </div>
+          </template>
+
+          <!-- 에러 -->
+          <template x-if="routeResult && routeDayNum === dayNum && routeResult.error">
+            <div class="route-error" x-text="'⚠️ ' + routeResult.error"></div>
+          </template>
+        </div>
+      </template>
 
       <!-- Zone 선택 -->
       <div class="section-title">🗺️ 어디부터 둘러볼까요?</div>

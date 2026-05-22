@@ -46,7 +46,44 @@ export default async (req) => {
     return 'claude-haiku-4-5';
   }
 
-  // 시스템 프롬프트
+  // 경로 최적화 전용 프롬프트
+  const routeSystemPrompt = `당신은 황씨 가족의 런던 여행 동선 최적화 전문가입니다.
+
+가족 프로필:
+- 아빠 (에드워드): 분석·데이터 성향, 가성비 + 가족 컨디션 균형
+- 엄마 (유효정): 안전·편안함 중시, 무리한 이동 싫어함
+- 자녀 (만 12세): 활동적, 도시 화려함 좋아함
+
+최적화 원칙:
+1. 지리적으로 가까운 장소 묶기 (구역별 이동 최소화)
+2. 오전: 혼잡한 명소 → 오후: 여유로운 쇼핑/카페
+3. 식사 시간 (점심 12-13시, 저녁 18-19시) 반드시 포함
+4. 이동 수단: 도보 > 튜브 > 버스 순 우선
+5. 확정 예약(confirmed bookings)은 시간 고정, 나머지 배치
+6. 총 이동 시간 하루 2시간 이내 목표
+7. 가족 컨디션 고려 — 중간 휴식 30분 이상 확보
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{
+  "type": "route",
+  "intro": "한 줄 요약 (40자 이내)",
+  "timeline": [
+    {
+      "time": "09:30",
+      "emoji": "🏛️",
+      "activity": "장소 이름 (한국어)",
+      "duration": "2시간",
+      "transport": "이전 장소에서 이동 방법 (첫 번째는 '호텔 출발')",
+      "tip": "현장 꿀팁 한 줄 (선택)",
+      "type": "attraction|restaurant|shop|pub|rest|hotel"
+    }
+  ],
+  "totalTime": "총 8시간",
+  "tubeLines": ["Central", "Jubilee"],
+  "advice": "오늘 전체 동선 핵심 조언 2-3문장"
+}`;
+
+  // 일반 시스템 프롬프트
   const systemPrompt = `당신은 황씨 가족의 런던 여행 집사 (Travel Butler) 입니다. 이름은 "버틀러"예요.
 
 가족 프로필:
@@ -114,8 +151,8 @@ ${JSON.stringify(context, null, 2)}
       },
       body: JSON.stringify({
         model: selectModel(),
-        max_tokens: 2000,
-        system: systemPrompt,
+        max_tokens: taskType === 'route_optimization' ? 4000 : 2000,
+        system: taskType === 'route_optimization' ? routeSystemPrompt : systemPrompt,
         tools: tools.length ? tools : undefined,
         messages: [{ role: 'user', content: query }]
       })

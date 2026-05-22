@@ -30,6 +30,18 @@ function tripApp() {
     // 시계 (도구)
     clock: { london: '', seoul: '' },
 
+    // 날씨 + 환율 위젯
+    weather: { loaded: false, tempC: '', desc: '', humidity: '', wind: '', icon: '' },
+    currency: { loaded: false, rate: 0, date: '' },
+
+    // TfL 튜브 상태
+    tfl: { loaded: false, lines: [] },
+
+    // 경로 최적화
+    routeResult: null,   // { timeline, totalTime, tubeLines, advice, intro }
+    routeLoading: false,
+    routeDayNum: null,
+
     // Butler AI
     butlerMessages: [],
     butlerInput: '',
@@ -74,6 +86,14 @@ function tripApp() {
       this.computeCountdown();
       this.tickClock();
       setInterval(() => this.tickClock(), 30000);
+
+      // 날씨 + 환율 + TfL 로드 (병렬)
+      this.fetchWeather();
+      this.fetchCurrency();
+      this.fetchTfl();
+      setInterval(() => this.fetchWeather(), 30 * 60 * 1000);  // 30분마다
+      setInterval(() => this.fetchCurrency(), 60 * 60 * 1000); // 1시간마다
+      setInterval(() => this.fetchTfl(), 5 * 60 * 1000);       // 5분마다
 
       // 라우팅
       window.addEventListener('hashchange', () => this.syncFromHash());
@@ -139,6 +159,95 @@ function tripApp() {
       }).format(new Date());
       this.clock.london = fmt('Europe/London');
       this.clock.seoul = fmt('Asia/Seoul');
+    },
+
+    // ---- 날씨 + 환율 ----
+    async fetchWeather() {
+      try {
+        const res = await fetch('https://wttr.in/London?format=j1', { cache: 'no-cache' });
+        const d = await res.json();
+        const c = d.current_condition[0];
+        const descs = { 'Sunny': '맑음', 'Clear': '맑음', 'Partly cloudy': '구름 조금', 'Cloudy': '흐림',
+          'Overcast': '흐림', 'Mist': '안개', 'Light rain': '가벼운 비', 'Moderate rain': '비',
+          'Heavy rain': '폭우', 'Light snow': '눈', 'Thundery outbreaks possible': '번개',
+          'Patchy rain possible': '비 올 수 있음', 'Blowing snow': '눈보라' };
+        const raw = c.weatherDesc[0].value;
+        this.weather = {
+          loaded: true,
+          tempC: c.temp_C,
+          desc: descs[raw] || raw,
+          humidity: c.humidity,
+          wind: c.windspeedKmph,
+          icon: this._weatherIcon(c.weatherCode)
+        };
+      } catch { /* 오프라인 시 무시 */ }
+    },
+
+    _weatherIcon(code) {
+      const n = +code;
+      if (n === 113) return '☀️';
+      if (n === 116) return '⛅';
+      if ([119, 122].includes(n)) return '☁️';
+      if ([143, 248, 260].includes(n)) return '🌫️';
+      if ([176, 293, 296, 299, 302, 305, 308].includes(n)) return '🌧️';
+      if ([200, 386, 389, 392, 395].includes(n)) return '⛈️';
+      if ([179, 182, 185, 281, 284, 311, 314, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377].includes(n)) return '❄️';
+      return '🌡️';
+    },
+
+    async fetchCurrency() {
+      try {
+        const res = await fetch('https://api.frankfurter.app/latest?from=GBP&to=KRW', { cache: 'no-cache' });
+        const d = await res.json();
+        this.currency = {
+          loaded: true,
+          rate: Math.round(d.rates.KRW),
+          date: d.date
+        };
+      } catch { /* 오프라인 시 무시 */ }
+    },
+
+    // ---- TfL 튜브 상태 ----
+    async fetchTfl() {
+      // 여행에 주로 쓰는 7개 노선
+      const lineIds = 'central,jubilee,northern,victoria,piccadilly,district,elizabeth';
+      try {
+        const res = await fetch(
+          `https://api.tfl.gov.uk/Line/${lineIds}/Status`,
+          { cache: 'no-cache' }
+        );
+        const data = await res.json();
+        const nameKo = {
+          central: '센트럴', jubilee: '주빌리', northern: '노던',
+          victoria: '빅토리아', piccadilly: '피카딜리',
+          district: '디스트릭트', elizabeth: '엘리자베스'
+        };
+        const lineColor = {
+          central: '#E32017', jubilee: '#A0A5A9', northern: '#000000',
+          victoria: '#0098D4', piccadilly: '#003688',
+          district: '#00782A', elizabeth: '#6950A1'
+        };
+        this.tfl.lines = data.map(line => {
+          const status = line.lineStatuses[0] || {};
+          const severity = status.statusSeverity ?? 10;
+          return {
+            id: line.id,
+            name: nameKo[line.id] || line.name,
+            color: lineColor[line.id] || '#888',
+            severity,
+            desc: status.statusSeverityDescription || '정보 없음',
+            reason: status.reason || '',
+            ok: severity === 10
+          };
+        }).sort((a, b) => a.severity - b.severity); // 문제 노선 먼저
+        this.tfl.loaded = true;
+      } catch { /* 오프라인 시 무시 */ }
+    },
+
+    tflStatusEmoji(severity) {
+      if (severity === 10) return '✅';
+      if (severity >= 8) return '⚠️';
+      return '🚨';
     },
 
     // ---- Day 헬퍼 ----
@@ -344,6 +453,54 @@ function tripApp() {
         });
       }
       this.toggleActivity(this.dayNum, card.id);
+    },
+
+    // ---- 경로 최적화 ----
+    async optimizeRoute(n) {
+      if (this.routeLoading) return;
+      this.routeLoading = true;
+      this.routeResult = null;
+      this.routeDayNum = n;
+
+      const dayObj = this.days.find(d => d.day === n) || {};
+      const selected = this.dayActivities(n);
+      const confirmed = this.confirmedForDay(n);
+
+      const query = `Day ${n} (${dayObj.date || ''}, ${dayObj.concept || ''}) 동선을 최적화해줘.
+
+호텔: ${dayObj.hotelName || ''}
+확정 예약: ${confirmed.length ? confirmed.map(c => c.time + ' ' + c.title + ' @ ' + c.sub).join(' / ') : '없음'}
+선택한 활동 (${selected.length}개):
+${selected.map(a => `- ${a.nameKo || a.name} [${a.type}] Zone:${a.zone} 소요:${a.duration || '미정'} 주소:${a.address || ''}`).join('\n')}
+
+위 장소들을 효율적인 순서로 배치해서 타임라인을 만들어줘.`;
+
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, context: {}, taskType: 'route_optimization', useWebSearch: false })
+        });
+        const data = await res.json();
+        if (data.type === 'route' && data.timeline) {
+          this.routeResult = data;
+        } else {
+          this.routeResult = { error: data.error || '응답 형식 오류' };
+        }
+      } catch (e) {
+        this.routeResult = { error: '연결 오류가 발생했어요.' };
+      } finally {
+        this.routeLoading = false;
+      }
+    },
+
+    clearRoute() {
+      this.routeResult = null;
+      this.routeDayNum = null;
+    },
+
+    routeTypeIcon(type) {
+      return { attraction: '🏛️', restaurant: '🍽️', shop: '🛍️', pub: '🍺', rest: '☕', hotel: '🏨' }[type] || '📍';
     }
   };
 }
