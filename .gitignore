@@ -1,0 +1,6 @@
+api key.txt
+*.key
+*.env
+.env
+.env.local
+node_modules/

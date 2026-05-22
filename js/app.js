@@ -197,14 +197,16 @@ function tripApp() {
 
     async fetchCurrency() {
       try {
-        const res = await fetch('https://api.frankfurter.app/latest?from=GBP&to=KRW', { cache: 'no-cache' });
+        const res = await fetch('/.netlify/functions/butler?type=currency', { cache: 'no-cache' });
         const d = await res.json();
         this.currency = {
           loaded: true,
           rate: Math.round(d.rates.KRW),
           date: d.date
         };
-      } catch { /* 오프라인 시 무시 */ }
+      } catch {
+        this.currency = { loaded: true, rate: 0, date: '', failed: true };
+      }
     },
 
     // ---- TfL 튜브 상태 ----
@@ -227,15 +229,36 @@ function tripApp() {
           victoria: '#0098D4', piccadilly: '#003688',
           district: '#00782A', elizabeth: '#6950A1'
         };
+        const statusKo = {
+          'Good Service': '정상 운행',
+          'Minor Delays': '소규모 지연',
+          'Severe Delays': '심각한 지연',
+          'Part Suspended': '부분 운행 중단',
+          'Suspended': '운행 중단',
+          'Part Closure': '부분 폐쇄',
+          'Planned Closure': '예정된 폐쇄',
+          'Service Closed': '운행 종료',
+          'Reduced Service': '축소 운행',
+          'Bus Service': '버스 대체 운행',
+          'Special Service': '특별 운행',
+          'No Issues': '정상 운행',
+          'Not Running': '운행 없음',
+          'Issues Reported': '문제 발생',
+          'Exit Only': '출구 전용',
+          'Not Real Time': '실시간 정보 없음',
+          'Information': '안내',
+          'Unknown': '상태 불명'
+        };
         this.tfl.lines = data.map(line => {
           const status = line.lineStatuses[0] || {};
           const severity = status.statusSeverity ?? 10;
+          const rawDesc = status.statusSeverityDescription || '';
           return {
             id: line.id,
             name: nameKo[line.id] || line.name,
             color: lineColor[line.id] || '#888',
             severity,
-            desc: status.statusSeverityDescription || '정보 없음',
+            desc: statusKo[rawDesc] || rawDesc || '정보 없음',
             reason: status.reason || '',
             ok: severity === 10
           };

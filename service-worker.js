@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1.0.5';
+const CACHE_VERSION = 'v1.0.6';
 const CACHE_NAME = `london-trip-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [

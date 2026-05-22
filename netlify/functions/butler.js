@@ -14,6 +14,25 @@ export default async (req) => {
     });
   }
 
+  // 환율 프록시: GET /.netlify/functions/butler?type=currency
+  if (req.method === 'GET') {
+    const url = new URL(req.url);
+    if (url.searchParams.get('type') === 'currency') {
+      try {
+        const r = await fetch('https://api.frankfurter.app/latest?from=GBP&to=KRW');
+        const d = await r.json();
+        return new Response(JSON.stringify(d), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: '환율 정보를 불러올 수 없습니다.' }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+  }
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
   }
@@ -81,7 +100,10 @@ export default async (req) => {
   "totalTime": "총 8시간",
   "tubeLines": ["Central", "Jubilee"],
   "advice": "오늘 전체 동선 핵심 조언 2-3문장"
-}`;
+}
+
+절대 마크다운 코드블록(\`\`\`json)으로 감싸지 마세요. JSON 객체만 반환하세요.
+활동이 없거나 정보가 부족해도 반드시 위 JSON 형식을 유지하세요.`;
 
   // 일반 시스템 프롬프트
   const systemPrompt = `당신은 황씨 가족의 런던 여행 집사 (Travel Butler) 입니다. 이름은 "버틀러"예요.
@@ -178,11 +200,29 @@ ${JSON.stringify(context, null, 2)}
     // JSON 파싱 시도
     let parsed;
     try {
-      const match = rawText.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(match ? match[0] : rawText);
-    } catch {
-      // JSON 파싱 실패 시 answer 형태로 감싸기
-      parsed = { type: 'answer', intro: '버틀러 응답', answer: rawText, cards: [] };
+      // 마크다운 코드블록 제거
+      let cleanText = rawText
+        .replace(/^```json\s*/m, '')
+        .replace(/^```\s*/m, '')
+        .replace(/```\s*$/m, '')
+        .trim();
+
+      // JSON 객체 추출 (가장 바깥 {} 매칭)
+      const start = cleanText.indexOf('{');
+      const end = cleanText.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+        cleanText = cleanText.slice(start, end + 1);
+      }
+
+      parsed = JSON.parse(cleanText);
+    } catch (parseErr) {
+      console.error('JSON parse failed. rawText:', rawText.slice(0, 500));
+      // route_optimization 실패 시 명확한 에러 타입 반환
+      if (taskType === 'route_optimization') {
+        parsed = { type: 'error', error: '동선 응답 파싱 오류. 다시 시도해 주세요.' };
+      } else {
+        parsed = { type: 'answer', intro: '버틀러 응답', answer: rawText, cards: [] };
+      }
     }
 
     return new Response(JSON.stringify(parsed), {

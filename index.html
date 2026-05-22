@@ -454,13 +454,32 @@
       <div class="section-title">💷 실시간 환율</div>
       <div class="card" style="display:flex; gap:12px; align-items:center;">
         <span style="font-size:28px;">💱</span>
-        <div style="font-size:12px; color:var(--text-secondary);">GBP↔KRW 실시간 환율은 Phase 3(실시간 API)에서 제공돼요.</div>
+        <template x-if="currency.loaded && !currency.failed">
+          <div>
+            <div style="font-size:22px; font-weight:800; color:var(--primary);" x-text="'₩' + currency.rate.toLocaleString()"></div>
+            <div style="font-size:12px; color:var(--text-secondary);" x-text="'£1 기준 · ' + currency.date"></div>
+          </div>
+        </template>
+        <template x-if="currency.failed">
+          <div style="font-size:12px; color:var(--text-secondary);">환율 정보를 불러올 수 없습니다.</div>
+        </template>
+        <template x-if="!currency.loaded">
+          <div style="font-size:12px; color:var(--text-secondary);">불러오는 중…</div>
+        </template>
       </div>
 
       <div class="section-title">🌤️ 런던 날씨</div>
       <div class="card" style="display:flex; gap:12px; align-items:center;">
-        <span style="font-size:28px;">⛅</span>
-        <div style="font-size:12px; color:var(--text-secondary);">실시간 날씨·예보는 Phase 3(실시간 API)에서 제공돼요. 6월 런던은 변덕스러우니 우산 챙기세요.</div>
+        <span style="font-size:28px;" x-text="weather.loaded ? weather.icon : '⛅'"></span>
+        <template x-if="weather.loaded">
+          <div>
+            <div style="font-size:18px; font-weight:700;" x-text="weather.tempC + '°C · ' + weather.desc"></div>
+            <div style="font-size:12px; color:var(--text-secondary);" x-text="'💧' + weather.humidity + '% · 💨' + weather.wind + 'km/h'"></div>
+          </div>
+        </template>
+        <template x-if="!weather.loaded">
+          <div style="font-size:12px; color:var(--text-secondary);">불러오는 중… 6월 런던은 변덕스러우니 우산 챙기세요.</div>
+        </template>
       </div>
     </section>
 
