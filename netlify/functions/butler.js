@@ -164,4 +164,4 @@ ${JSON.stringify(context, null, 2)}
   }
 };
 
-export const config = { path: '/butler' };
+// 기본 경로: /.netlify/functions/butler
