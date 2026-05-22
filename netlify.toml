@@ -1,0 +1,16 @@
+[build]
+  publish = "."
+
+# Phase 2+에서 Netlify Functions(Claude Butler, 날씨 등)를 추가할 때 사용
+[functions]
+  directory = "netlify/functions"
+
+[[headers]]
+  for = "/service-worker.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"

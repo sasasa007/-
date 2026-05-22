@@ -1,0 +1,57 @@
+{
+  "flights": [
+    {
+      "id": "ke907",
+      "type": "출국",
+      "day": 1,
+      "date": "2026-06-15",
+      "flight": "KE907",
+      "from": "ICN 10:55",
+      "to": "LHR 17:20",
+      "pnr": "114417930970"
+    },
+    {
+      "id": "ke908",
+      "type": "귀국",
+      "day": 8,
+      "date": "2026-06-22",
+      "flight": "KE908",
+      "from": "LHR 19:35",
+      "to": "ICN+1 16:15",
+      "pnr": "114417930970"
+    }
+  ],
+  "hotels": [
+    {
+      "id": "citadines_holborn",
+      "name": "Citadines Holborn-Covent Garden",
+      "checkIn": "2026-06-15",
+      "checkOut": "2026-06-18",
+      "nights": 3,
+      "price": "₩261만",
+      "breakfast": false
+    },
+    {
+      "id": "royal_horseguards",
+      "name": "The Royal Horseguards Hotel",
+      "checkIn": "2026-06-18",
+      "checkOut": "2026-06-22",
+      "nights": 4,
+      "price": "₩336만",
+      "breakfast": true
+    }
+  ],
+  "bookings": [
+    {
+      "id": "wimbledon_tour",
+      "day": 2,
+      "date": "2026-06-16",
+      "time": "14:30",
+      "type": "tour",
+      "title": "Wimbledon Tour + Museum",
+      "location": "All England Lawn Tennis Club",
+      "booked": true,
+      "note": "예약 완료 ✅"
+    }
+  ]
+}

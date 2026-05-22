@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const fs=require\\('fs'\\);['days','zones','confirmed','attractions','restaurants','shops','pubs','checklist','emergency'].forEach\\(f=>{try{JSON.parse\\(fs.readFileSync\\('data/'+f+'.json','utf8'\\)\\);console.log\\('OK',f\\)}catch\\(e\\){console.log\\('FAIL',f,e.message\\)}}\\);JSON.parse\\(fs.readFileSync\\('manifest.json','utf8'\\)\\);console.log\\('OK manifest'\\)\")",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(mkdir -p verification)",
+      "Bash(node -e ' *)"
+    ]
+  }
+}

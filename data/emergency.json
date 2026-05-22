@@ -1,0 +1,25 @@
+{
+  "emergency": [
+    { "id": "uk_emergency", "label": "영국 통합 응급 (경찰·소방·구급)", "number": "999", "note": "긴급 상황" },
+    { "id": "uk_nonemergency", "label": "비응급 의료 상담 (NHS)", "number": "111", "note": "급하지 않은 의료" },
+    { "id": "uk_police_nonurgent", "label": "비긴급 경찰", "number": "101", "note": "분실·신고" }
+  ],
+  "consulate": {
+    "name": "주영국 대한민국 대사관",
+    "address": "60 Buckingham Gate, London SW1E 6AJ",
+    "phone": "+44 20 7227 5500",
+    "emergency": "+44 7768 745 891",
+    "note": "야간·주말 긴급 영사 콜센터: +82 2 3210 0404"
+  },
+  "hotels": [
+    { "id": "citadines_holborn", "name": "Citadines Holborn-Covent Garden", "phone": "+44 20 7395 8800", "days": "Day 1-3" },
+    { "id": "royal_horseguards", "name": "The Royal Horseguards Hotel", "phone": "+44 20 7523 5023", "days": "Day 4-7" }
+  ],
+  "phrases": [
+    { "ko": "도움이 필요해요.", "en": "I need help." },
+    { "ko": "가장 가까운 병원이 어디예요?", "en": "Where is the nearest hospital?" },
+    { "ko": "아이를 잃어버렸어요.", "en": "I've lost my child." },
+    { "ko": "지갑을 도난당했어요.", "en": "My wallet has been stolen." },
+    { "ko": "경찰을 불러주세요.", "en": "Please call the police." }
+  ]
+}

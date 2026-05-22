@@ -1,0 +1,56 @@
+[
+  {
+    "id": "A",
+    "name": "Holborn / Covent / Soho",
+    "nameKo": "홀본·코벤트·소호",
+    "icon": "🎭",
+    "color": "#FF6B9D",
+    "description": "런던 중심부 활기, 호텔 베이스",
+    "distance": "호텔 도보권"
+  },
+  {
+    "id": "B",
+    "name": "Westminster / 강변",
+    "nameKo": "웨스트민스터·강변",
+    "icon": "🏛️",
+    "color": "#5B8DEF",
+    "description": "격식, 빅벤·교대식",
+    "distance": "Horseguards 도보"
+  },
+  {
+    "id": "C",
+    "name": "Tower / Borough",
+    "nameKo": "타워·버러",
+    "icon": "🌉",
+    "color": "#2ECC71",
+    "description": "강변, 마켓, 타워 브리지",
+    "distance": "튜브 15분"
+  },
+  {
+    "id": "D",
+    "name": "Notting Hill / Portobello",
+    "nameKo": "노팅힐·포토벨로",
+    "icon": "🎨",
+    "color": "#9B59B6",
+    "description": "컬러풀, 토요일 마켓",
+    "distance": "우버 20분"
+  },
+  {
+    "id": "E",
+    "name": "Knightsbridge",
+    "nameKo": "나이츠브리지",
+    "icon": "👑",
+    "color": "#F39C12",
+    "description": "럭셔리, 해롯",
+    "distance": "튜브 10분"
+  },
+  {
+    "id": "F",
+    "name": "Oxford",
+    "nameKo": "옥스퍼드",
+    "icon": "🎓",
+    "color": "#16A085",
+    "description": "학구, 디베이트 (당일치기)",
+    "distance": "기차 1시간"
+  }
+]

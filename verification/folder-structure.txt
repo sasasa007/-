@@ -1,0 +1,36 @@
+우리 가족 런던 트립 — 폴더 구조 스캔
+생성: 2026-05-21T08:52:11.554Z
+ROOT: C:\Users\edwar\OneDrive\바탕 화면\런던여행
+==================================================
+
+런던여행/
+├── .claude/
+│   ├── launch.json (201B)
+│   └── settings.local.json (603B)
+├── css/
+│   └── styles.css (14.3KB)
+├── data/
+│   ├── attractions.json (11.0KB)
+│   ├── checklist.json (1.8KB)
+│   ├── confirmed.json (1.2KB)
+│   ├── days.json (2.7KB)
+│   ├── emergency.json (1.3KB)
+│   ├── pubs.json (3.2KB)
+│   ├── restaurants.json (6.6KB)
+│   ├── shops.json (4.7KB)
+│   └── zones.json (1.3KB)
+├── icons/
+│   ├── icon-maskable.svg (1.3KB)
+│   └── icon.svg (1.4KB)
+├── js/
+│   ├── app.js (7.8KB)
+│   ├── pwa.js (955B)
+│   └── storage.js (864B)
+├── verification/
+├── index.html (20.7KB)
+├── manifest.json (606B)
+├── netlify.toml (342B)
+├── PRD.md (53.8KB)
+├── README.md (5.4KB)
+├── robots.txt (26B)
+└── service-worker.js (2.7KB)

@@ -1,0 +1,18 @@
+{
+  "name": "우리 가족 런던 트립",
+  "short_name": "런던 트립",
+  "description": "황씨 가족의 런던 여행 동반자 - Travel Butler",
+  "version": "1.0.0",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFF9F5",
+  "theme_color": "#C8102E",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "ko-KR",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "categories": ["travel", "lifestyle"]
+}

@@ -1,0 +1,90 @@
+[
+  {
+    "day": 1,
+    "date": "2026-06-15",
+    "dayOfWeek": "월",
+    "hotel": "citadines_holborn",
+    "hotelName": "Citadines Holborn-Covent Garden",
+    "baseZone": "A",
+    "concept": "도착 + 호텔 체크인 + 가벼운 동네 산책",
+    "emoji": "✈️",
+    "note": "LHR 17:20 도착 → 호텔 19:30 예상. 첫날은 무리하지 않기."
+  },
+  {
+    "day": 2,
+    "date": "2026-06-16",
+    "dayOfWeek": "화",
+    "hotel": "citadines_holborn",
+    "hotelName": "Citadines Holborn-Covent Garden",
+    "baseZone": "A",
+    "concept": "윔블던 투어 + 박물관",
+    "emoji": "🎾",
+    "note": "Wimbledon Tour + Museum 14:30 예약 확정 ✅. 오전 여유."
+  },
+  {
+    "day": 3,
+    "date": "2026-06-17",
+    "dayOfWeek": "수",
+    "hotel": "citadines_holborn",
+    "hotelName": "Citadines Holborn-Covent Garden",
+    "baseZone": "A",
+    "concept": "코벤트가든 + 소호 + 웨스트엔드 뮤지컬",
+    "emoji": "🎭",
+    "note": "Matilda 등 웨스트엔드 뮤지컬 추천. 호텔 도보권 활용."
+  },
+  {
+    "day": 4,
+    "date": "2026-06-18",
+    "dayOfWeek": "목",
+    "hotel": "royal_horseguards",
+    "hotelName": "The Royal Horseguards Hotel",
+    "baseZone": "B",
+    "concept": "웨스트민스터 + 호텔 이동 (조식 호텔로)",
+    "emoji": "🏛️",
+    "note": "오전 체크아웃 → 짐 보관 → 저녁 Royal Horseguards 체크인. 빅벤·웨스트민스터 도보권."
+  },
+  {
+    "day": 5,
+    "date": "2026-06-19",
+    "dayOfWeek": "금",
+    "hotel": "royal_horseguards",
+    "hotelName": "The Royal Horseguards Hotel",
+    "baseZone": "C",
+    "concept": "타워 브리지 + 버러 마켓 + 강변",
+    "emoji": "🌉",
+    "note": "Borough Market 금요일 운영. 호텔 키친용 식재료 픽업도 가능."
+  },
+  {
+    "day": 6,
+    "date": "2026-06-20",
+    "dayOfWeek": "토",
+    "hotel": "royal_horseguards",
+    "hotelName": "The Royal Horseguards Hotel",
+    "baseZone": "D",
+    "concept": "포토벨로 마켓 + 노팅힐 (토요일 大마켓)",
+    "emoji": "🎨",
+    "note": "토요일은 Portobello Market 절정. 컬러풀한 거리 사진 명소."
+  },
+  {
+    "day": 7,
+    "date": "2026-06-21",
+    "dayOfWeek": "일",
+    "hotel": "royal_horseguards",
+    "hotelName": "The Royal Horseguards Hotel",
+    "baseZone": "E",
+    "concept": "해롯 + 자유 일정 + 마지막 정리",
+    "emoji": "👑",
+    "note": "Knightsbridge 럭셔리 쇼핑. 마지막 밤 정리·일기."
+  },
+  {
+    "day": 8,
+    "date": "2026-06-22",
+    "dayOfWeek": "월",
+    "hotel": "royal_horseguards",
+    "hotelName": "The Royal Horseguards Hotel",
+    "baseZone": "A",
+    "concept": "체크아웃 + 마지막 쇼핑 + 공항",
+    "emoji": "🛫",
+    "note": "LHR 19:35 출발. 오후 일찍 공항 이동 권장."
+  }
+]

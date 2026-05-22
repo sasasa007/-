@@ -1,0 +1,43 @@
+[
+  {
+    "category": "출국 전 (D-30~D-7)",
+    "emoji": "📋",
+    "items": [
+      { "id": "eta", "label": "영국 ETA 전자여행허가 신청", "note": "가족 3인 모두" },
+      { "id": "passport", "label": "여권 유효기간 6개월 이상 확인", "note": "" },
+      { "id": "insurance", "label": "여행자 보험 가입", "note": "" },
+      { "id": "fraser_refund", "label": "Fraser 환불 확인", "note": "" },
+      { "id": "wimbledon_print", "label": "윔블던 투어 바우처 저장", "note": "Day 2 14:30" }
+    ]
+  },
+  {
+    "category": "출국 직전 (D-3~D-1)",
+    "emoji": "🧳",
+    "items": [
+      { "id": "esim", "label": "eSIM / 데이터 로밍 준비", "note": "" },
+      { "id": "adapter", "label": "영국 G타입 멀티 어댑터", "note": "" },
+      { "id": "cash", "label": "파운드 환전 (£200 내외)", "note": "마켓 현금 대비" },
+      { "id": "oyster", "label": "Oyster/컨택리스 카드 확인", "note": "튜브·버스" },
+      { "id": "weather_check", "label": "런던 날씨 확인 + 우산", "note": "6월도 비 잦음" },
+      { "id": "meds", "label": "상비약 챙기기", "note": "" }
+    ]
+  },
+  {
+    "category": "도착 후",
+    "emoji": "🛬",
+    "items": [
+      { "id": "hotel_checkin", "label": "Citadines Holborn 체크인", "note": "Day 1" },
+      { "id": "data_on", "label": "데이터/eSIM 활성화 확인", "note": "" },
+      { "id": "tube_card", "label": "튜브 카드 작동 테스트", "note": "" }
+    ]
+  },
+  {
+    "category": "귀국",
+    "emoji": "✈️",
+    "items": [
+      { "id": "tax_refund", "label": "택스 리펀 (해롯 등) 처리", "note": "공항 전 서류" },
+      { "id": "checkout2", "label": "Royal Horseguards 체크아웃", "note": "Day 8" },
+      { "id": "airport_early", "label": "공항 3시간 전 도착", "note": "LHR 19:35 KE908" }
+    ]
+  }
+]

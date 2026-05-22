@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <title>우리 가족 런던 트립</title>
+  <meta name="description" content="황씨 가족의 런던 여행 동반자 - Travel Butler" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#C8102E" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="런던 트립" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+
+  <!-- 폰트 -->
+  <link rel="stylesheet" as="style" crossorigin
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { corePlugins: { preflight: false } };
+  </script>
+
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+
+<body x-data="tripApp()" x-init="init()" x-cloak>
+
+  <!-- ===== 헤더 ===== -->
+  <header class="app-header">
+    <button x-show="view !== 'home'" @click="back()" class="hdr-btn back" aria-label="뒤로">‹</button>
+    <h1 class="flex-1">🇬🇧 우리 가족 런던 트립</h1>
+    <button @click="go('/emergency')" class="hdr-sos" aria-label="응급" title="응급">SOS</button>
+    <button @click="toggleDark()" class="hdr-btn" aria-label="다크모드" title="다크모드">
+      <span x-text="darkMode ? '☀️' : '🌙'"></span>
+    </button>
+  </header>
+
+  <!-- 로딩 -->
+  <div x-show="!loaded" class="empty">불러오는 중…</div>
+
+  <main x-show="loaded">
+
+    <!-- ============ 홈 ============ -->
+    <section x-show="view === 'home'" class="app-view">
+      <div class="dday-card">
+        <div class="dday-num" x-text="ddayDisplay()"></div>
+        <div class="dday-label" x-text="cd.label"></div>
+        <div class="dday-sub" x-text="cd.sub"></div>
+      </div>
+
+      <div class="section-title">🎩 Travel Butler</div>
+      <button class="butler-input btn-block" @click="butlerSheet = true">
+        <span class="ph">무엇을 도와드릴까요?</span>
+        <span class="soon">Phase 2</span>
+      </button>
+
+      <div class="section-title">🌟 오늘의 추천</div>
+      <div class="card" style="display:flex; gap:12px; align-items:center;">
+        <span style="font-size:32px;">🤖</span>
+        <div>
+          <div style="font-weight:700;">AI 맞춤 추천</div>
+          <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
+            날씨·컨디션·일정을 분석한 오늘의 추천은 Phase 2(AI 통합)에서 제공돼요.
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">🗓️ 일정 (Day 1–8)</div>
+      <div class="day-grid">
+        <template x-for="d in days" :key="d.day">
+          <button class="day-tile" :class="{ 'is-today': isToday(d.day) }" @click="goDay(d.day)">
+            <div class="d-top">
+              <span class="d-num" x-text="'Day ' + d.day"></span>
+              <span class="d-emoji" x-text="d.emoji"></span>
+            </div>
+            <span class="d-date" x-text="d.date.slice(5).replace('-','/') + ' (' + d.dayOfWeek + ')'"></span>
+            <span class="d-concept" x-text="d.concept"></span>
+            <span x-show="isToday(d.day)" class="badge-today" style="align-self:flex-start; margin-top:4px;">오늘</span>
+          </button>
+        </template>
+      </div>
+    </section>
+
+    <!-- ============ Day 화면 ============ -->
+    <section x-show="view === 'day'" class="app-view" x-data="{ get d() { return dayObj(dayNum); } }">
+      <div class="section-title" style="margin-top:0;">
+        <span x-text="'Day ' + dayNum"></span>
+        <span style="color:var(--text-light); font-weight:600; font-size:13px;"
+          x-text="d.date ? (d.date.slice(5).replace('-','/') + ' (' + d.dayOfWeek + ')') : ''"></span>
+        <span x-text="d.emoji"></span>
+      </div>
+      <div style="font-size:13px; color:var(--text-secondary); margin-bottom:4px;">🏨 <span x-text="d.hotelName"></span></div>
+
+      <div class="card" style="background:var(--bg-section); border:none;">
+        <div style="font-weight:700; font-size:14px;" x-text="'📍 ' + d.concept"></div>
+        <div style="font-size:12px; color:var(--text-secondary); margin-top:6px;" x-text="d.note"></div>
+      </div>
+
+      <!-- 확정 일정 -->
+      <template x-if="confirmedForDay(dayNum).length">
+        <div>
+          <div class="section-title">✅ 확정 일정</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <template x-for="c in confirmedForDay(dayNum)" :key="c.title">
+              <div class="confirmed-item">
+                <span class="ci-time" x-text="c.time"></span>
+                <div>
+                  <div class="ci-title" x-text="c.title"></div>
+                  <div class="ci-sub" x-text="c.sub"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- 내가 추가한 활동 -->
+      <div class="section-title">🧳 내가 추가한 활동
+        <span style="font-size:12px; color:var(--text-light); font-weight:600;"
+          x-text="'(' + dayActivities(dayNum).length + ')'"></span>
+      </div>
+      <template x-if="dayActivities(dayNum).length === 0">
+        <div class="empty" style="padding:20px;">아직 추가한 활동이 없어요.<br>아래에서 Zone을 골라 활동을 담아보세요.</div>
+      </template>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <template x-for="a in dayActivities(dayNum)" :key="a.id">
+          <div class="confirmed-item" style="border-left-color:var(--warm);">
+            <span style="font-size:22px;" x-text="a.emoji"></span>
+            <div style="flex:1;" @click="goCard(a.id)">
+              <div class="ci-title" x-text="a.nameKo || a.name"></div>
+              <div class="ci-sub" x-text="typeLabel(a.type) + ' · ' + (a.duration || '')"></div>
+            </div>
+            <button class="btn btn-sm btn-outline" @click="toggleActivity(dayNum, a.id)">빼기</button>
+          </div>
+        </template>
+      </div>
+
+      <!-- Zone 선택 -->
+      <div class="section-title">🗺️ 어디부터 둘러볼까요?</div>
+      <div class="zone-grid">
+        <template x-for="z in zones" :key="z.id">
+          <button class="zone-card" :style="'background: linear-gradient(135deg,' + z.color + ',' + z.color + 'aa)'"
+            @click="goZone(z.id)">
+            <span class="icon" x-text="z.icon"></span>
+            <div>
+              <div class="z-name" x-text="'Zone ' + z.id + ' · ' + z.nameKo"></div>
+              <div class="z-desc" x-text="z.description"></div>
+              <span class="z-dist" x-text="z.distance"></span>
+            </div>
+          </button>
+        </template>
+      </div>
+    </section>
+
+    <!-- ============ Zone 화면 (활동 목록) ============ -->
+    <section x-show="view === 'zone'" class="app-view" x-data="{ get z() { return zoneObj(zoneId); } }">
+      <div class="section-title" style="margin-top:0;">
+        <span x-text="z.icon"></span>
+        <span x-text="'Zone ' + zoneId + ' · ' + z.nameKo"></span>
+      </div>
+      <div style="font-size:12px; color:var(--text-secondary);" x-text="z.description + ' · ' + z.distance + ' · Day ' + dayNum + '에 담기'"></div>
+
+      <div class="chip-row">
+        <template x-for="f in [['all','전체'],['attraction','명소'],['restaurant','식당'],['shop','매장'],['pub','펍']]" :key="f[0]">
+          <button class="chip" :class="{ active: typeFilter === f[0] }" @click="typeFilter = f[0]" x-text="f[1]"></button>
+        </template>
+      </div>
+
+      <div class="section-title" style="margin-top:6px;">📌 우리 큐레이션
+        <span style="font-size:12px; color:var(--text-light); font-weight:600;" x-text="'(' + zoneActivities().length + ')'"></span>
+      </div>
+
+      <template x-if="zoneActivities().length === 0">
+        <div class="empty">이 Zone에는 해당 분류 항목이 아직 없어요.</div>
+      </template>
+
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <template x-for="a in zoneActivities()" :key="a.id">
+          <div class="activity-card">
+            <div class="image" :style="cardImageBg(a.zone)">
+              <span x-text="a.emoji"></span>
+              <div class="badges">
+                <span x-show="a.curated" class="badge-curated">큐레이션</span>
+                <span class="badge-type" x-text="typeLabel(a.type)"></span>
+              </div>
+            </div>
+            <div class="body">
+              <div class="a-name" x-text="a.nameKo || a.name"></div>
+              <div class="a-nameko" x-text="a.name"></div>
+              <div class="a-meta">
+                <span class="stars" x-text="'★ ' + a.rating"></span>
+                <span x-text="'👶 ' + a.kidsFriendly + '/5'"></span>
+                <span x-text="'⏱️ ' + a.duration"></span>
+                <span x-text="'💷 ' + a.price"></span>
+              </div>
+              <div class="a-reason" x-text="a.curatedReason"></div>
+              <div class="btn-row" style="margin-top:12px;">
+                <button class="btn btn-sm btn-outline" @click="goCard(a.id)">상세 →</button>
+                <button x-show="!isAdded(dayNum, a.id)" class="btn btn-sm btn-primary" @click="toggleActivity(dayNum, a.id)">오늘에 추가 +</button>
+                <button x-show="isAdded(dayNum, a.id)" class="btn btn-sm btn-warm" @click="toggleActivity(dayNum, a.id)">✓ 추가됨</button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- ============ 활동 카드 상세 ============ -->
+    <section x-show="view === 'card'" class="app-view" x-data="{ get a() { return card(); } }">
+      <div class="detail-hero" :style="heroBg(a.zone)">
+        <span x-text="a.emoji"></span>
+      </div>
+      <div style="font-size:20px; font-weight:800;" x-text="a.nameKo || a.name"></div>
+      <div style="color:var(--text-light); font-size:13px;" x-text="a.name"></div>
+      <div style="margin:8px 0;">
+        <span class="stars" x-text="'★ ' + a.rating"></span>
+        <span style="color:var(--text-light); font-size:13px;" x-text="'(' + (a.reviewCount || 0).toLocaleString() + ')'"></span>
+      </div>
+
+      <div style="margin-top:8px;">
+        <div class="detail-row"><span class="dr-key">📍 주소</span><span class="dr-val" x-text="a.address"></span></div>
+        <div class="detail-row"><span class="dr-key">🚇 튜브</span><span class="dr-val" x-text="a.nearestTube"></span></div>
+        <div class="detail-row"><span class="dr-key">🕐 운영</span><span class="dr-val" x-text="a.hours"></span></div>
+        <div class="detail-row"><span class="dr-key">💷 가격</span><span class="dr-val" x-text="a.price"></span></div>
+        <div class="detail-row"><span class="dr-key">⏱️ 소요</span><span class="dr-val" x-text="a.duration"></span></div>
+        <div class="detail-row"><span class="dr-key">👨‍👩‍👧 적합</span><span class="dr-val" x-text="'자녀 ' + a.kidsFriendly + '/5 · 부모 ' + a.parentFriendly + '/5'"></span></div>
+      </div>
+
+      <div class="a-reason" style="margin-top:14px;" x-text="a.curatedReason"></div>
+
+      <div style="margin-top:10px;">
+        <template x-for="t in (a.tags || [])" :key="t"><span class="tag" x-text="t"></span></template>
+      </div>
+
+      <!-- Butler 인사이트 (Phase 2) -->
+      <div class="insight-box">
+        <div class="ib-title">🎩 Butler 인사이트</div>
+        실시간 운영 상태·혼잡도·추천 메뉴·근처 발견은 Phase 2(AI 통합)에서 자동으로 채워져요.
+      </div>
+
+      <button class="btn btn-outline btn-block" style="margin-top:14px;" @click="openEtiquette(a)">🎩 영국 매너 가이드 보기</button>
+
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn btn-outline" @click="openMap(a)">🗺️ 지도 보기</button>
+        <button x-show="!isAdded(dayNum, a.id)" class="btn btn-primary" @click="toggleActivity(dayNum, a.id)" x-text="'Day ' + dayNum + '에 추가 +'"></button>
+        <button x-show="isAdded(dayNum, a.id)" class="btn btn-warm" @click="toggleActivity(dayNum, a.id)">✓ 추가됨 (빼기)</button>
+      </div>
+    </section>
+
+    <!-- ============ 체크리스트 ============ -->
+    <section x-show="view === 'checklist'" class="app-view">
+      <div class="section-title" style="margin-top:0;">✅ 여행 체크리스트</div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;">
+          <span>전체 진행률</span><span style="font-weight:800; color:var(--primary);" x-text="checkProgress() + '%'"></span>
+        </div>
+        <div style="height:10px; background:var(--bg-section); border-radius:6px; overflow:hidden;">
+          <div style="height:100%; background:var(--success); transition:width .4s ease;" :style="'width:' + checkProgress() + '%'"></div>
+        </div>
+      </div>
+
+      <template x-for="cat in checklist" :key="cat.category">
+        <div>
+          <div class="section-title" x-text="cat.emoji + ' ' + cat.category"></div>
+          <div class="card" style="padding:6px 16px;">
+            <template x-for="it in cat.items" :key="it.id">
+              <div class="check-row" @click="toggleCheck(it.id)">
+                <div class="check-box" :class="{ done: isChecked(it.id) }" x-text="isChecked(it.id) ? '✓' : ''"></div>
+                <div style="flex:1;">
+                  <div class="check-label" :class="{ done: isChecked(it.id) }" x-text="it.label"></div>
+                  <div x-show="it.note" class="check-note" x-text="it.note"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </section>
+
+    <!-- ============ 도구 ============ -->
+    <section x-show="view === 'tools'" class="app-view">
+      <div class="section-title" style="margin-top:0;">🛠️ 도구</div>
+
+      <div class="section-title">⏰ 시차 (실시간)</div>
+      <div class="card" style="display:flex; justify-content:space-around; text-align:center;">
+        <div>
+          <div style="font-size:13px; color:var(--text-light);">🇬🇧 런던</div>
+          <div style="font-size:22px; font-weight:800; color:var(--primary);" x-text="clock.london"></div>
+        </div>
+        <div style="border-left:1px solid var(--border);"></div>
+        <div>
+          <div style="font-size:13px; color:var(--text-light);">🇰🇷 서울</div>
+          <div style="font-size:22px; font-weight:800;" x-text="clock.seoul"></div>
+        </div>
+      </div>
+      <div style="font-size:12px; color:var(--text-light); margin-top:6px;">런던은 서울보다 8시간 느려요 (서머타임 기준).</div>
+
+      <div class="section-title">💷 실시간 환율</div>
+      <div class="card" style="display:flex; gap:12px; align-items:center;">
+        <span style="font-size:28px;">💱</span>
+        <div style="font-size:12px; color:var(--text-secondary);">GBP↔KRW 실시간 환율은 Phase 3(실시간 API)에서 제공돼요.</div>
+      </div>
+
+      <div class="section-title">🌤️ 런던 날씨</div>
+      <div class="card" style="display:flex; gap:12px; align-items:center;">
+        <span style="font-size:28px;">⛅</span>
+        <div style="font-size:12px; color:var(--text-secondary);">실시간 날씨·예보는 Phase 3(실시간 API)에서 제공돼요. 6월 런던은 변덕스러우니 우산 챙기세요.</div>
+      </div>
+    </section>
+
+    <!-- ============ 응급 ============ -->
+    <section x-show="view === 'emergency'" class="app-view">
+      <div class="section-title" style="margin-top:0;">🆘 비상 연락처</div>
+      <template x-for="e in (emergency.emergency || [])" :key="e.id">
+        <div class="emg-call" :class="{ urgent: e.number === '999' }">
+          <div>
+            <div style="font-weight:700; font-size:14px;" x-text="e.label"></div>
+            <div style="font-size:12px; color:var(--text-light);" x-text="e.note"></div>
+          </div>
+          <button class="btn btn-sm btn-outline" @click="call(e.number)">
+            📞 <span x-text="e.number"></span>
+          </button>
+        </div>
+      </template>
+
+      <div class="section-title">🏛️ 대한민국 대사관</div>
+      <div class="card">
+        <div style="font-weight:700;" x-text="emergency.consulate && emergency.consulate.name"></div>
+        <div style="font-size:12px; color:var(--text-secondary); margin:6px 0;" x-text="emergency.consulate && emergency.consulate.address"></div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn btn-sm btn-outline" @click="call(emergency.consulate.phone)">📞 대표</button>
+          <button class="btn btn-sm btn-primary" @click="call(emergency.consulate.emergency)">🚨 긴급 영사</button>
+        </div>
+        <div style="font-size:11px; color:var(--text-light); margin-top:8px;" x-text="emergency.consulate && emergency.consulate.note"></div>
+      </div>
+
+      <div class="section-title">🏨 호텔</div>
+      <template x-for="h in (emergency.hotels || [])" :key="h.id">
+        <div class="emg-call">
+          <div>
+            <div style="font-weight:700; font-size:13px;" x-text="h.name"></div>
+            <div style="font-size:12px; color:var(--text-light);" x-text="h.days"></div>
+          </div>
+          <button class="btn btn-sm btn-outline" @click="call(h.phone)">📞 전화</button>
+        </div>
+      </template>
+
+      <div class="section-title">🗣️ 응급 영어 표현</div>
+      <div class="card">
+        <template x-for="(p, i) in (emergency.phrases || [])" :key="i">
+          <div class="phrase">
+            <div style="font-weight:600; font-size:14px;" x-text="p.ko"></div>
+            <div class="en" x-text="p.en"></div>
+          </div>
+        </template>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== Bottom Sheet (매너 가이드) ===== -->
+  <div x-show="sheet" class="sheet-backdrop" @click.self="closeSheet()" x-transition.opacity>
+    <div class="sheet">
+      <div class="grip"></div>
+      <div style="font-weight:800; font-size:16px; margin-bottom:12px;" x-text="sheet && sheet.title"></div>
+      <template x-for="(m, i) in (sheet ? sheet.items : [])" :key="i">
+        <div style="display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--border);">
+          <span style="color:var(--primary); font-weight:800;" x-text="(i+1)"></span>
+          <span style="font-size:14px;" x-text="m"></span>
+        </div>
+      </template>
+      <button class="btn btn-primary btn-block" style="margin-top:16px;" @click="closeSheet()">확인</button>
+    </div>
+  </div>
+
+  <!-- ===== Butler 시트 (Phase 2 안내) ===== -->
+  <div x-show="butlerSheet" class="sheet-backdrop" @click.self="butlerSheet = false" x-transition.opacity>
+    <div class="sheet" style="text-align:center;">
+      <div class="grip"></div>
+      <div style="font-size:40px;">🎩</div>
+      <div style="font-weight:800; font-size:18px; margin:8px 0;">Travel Butler</div>
+      <div style="font-size:14px; color:var(--text-secondary); line-height:1.5;">
+        자연어로 묻고 카드로 답하는 AI 여행 집사는<br><b>Phase 2 (AI 통합)</b>에서 만나요.<br>
+        지금은 Zone에서 큐레이션 활동을 자유롭게 담아보세요!
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:18px;" @click="butlerSheet = false">알겠어요</button>
+    </div>
+  </div>
+
+  <!-- ===== Bottom Nav ===== -->
+  <nav class="bottom-nav" x-show="loaded">
+    <button class="nav-item" :class="{ active: view === 'home' }" @click="goHome()">
+      <span class="ni-icon">🏠</span><span>홈</span>
+    </button>
+    <button class="nav-item" :class="{ active: view === 'day' || view === 'zone' || view === 'card' }" @click="navDay()">
+      <span class="ni-icon">📅</span><span>Day</span>
+    </button>
+    <button class="nav-item" @click="butlerSheet = true">
+      <span class="ni-icon">🎩</span><span>Butler</span>
+    </button>
+    <button class="nav-item" :class="{ active: view === 'checklist' }" @click="go('/checklist')">
+      <span class="ni-icon">✅</span><span>체크</span>
+    </button>
+    <button class="nav-item" :class="{ active: view === 'tools' }" @click="go('/tools')">
+      <span class="ni-icon">🛠️</span><span>도구</span>
+    </button>
+  </nav>
+
+  <!-- 스크립트: app.js가 tripApp()를 먼저 정의 → Alpine 실행 -->
+  <script src="/js/storage.js"></script>
+  <script src="/js/app.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <script src="/js/pwa.js"></script>
+</body>
+</html>
