@@ -26,6 +26,9 @@
   </script>
 
   <link rel="stylesheet" href="/css/styles.css" />
+
+  <!-- Chart.js (진행률 시각화) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 
 <body x-data="tripApp()" x-init="init()" x-cloak>
@@ -242,7 +245,15 @@
             <div class="route-result">
               <div class="route-result-header">
                 <span class="route-result-intro" x-text="routeResult.intro"></span>
-                <button class="route-close" @click="clearRoute()">✕</button>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <button class="btn btn-sm btn-outline"
+                    :disabled="routeLoading"
+                    @click="optimizeRoute(dayNum)"
+                    style="font-size:12px; padding:4px 10px;">
+                    🔄 재최적화
+                  </button>
+                  <button class="route-close" @click="clearRoute()">✕</button>
+                </div>
               </div>
 
               <!-- 튜브 노선 뱃지 -->
@@ -396,6 +407,21 @@
 
       <button class="btn btn-outline btn-block" style="margin-top:14px;" @click="openEtiquette(a)">🎩 영국 매너 가이드 보기</button>
 
+      <!-- Google Maps 임베드 (좌표는 a.coordinates.lat/lng) -->
+      <template x-if="a.coordinates && a.coordinates.lat && a.coordinates.lng">
+        <div style="margin-top:16px; border-radius:12px; overflow:hidden; border:1px solid var(--border);">
+          <iframe
+            :src="'https://www.google.com/maps?q=' + a.coordinates.lat + ',' + a.coordinates.lng + '&output=embed&z=16'"
+            width="100%"
+            height="220"
+            style="border:0; display:block;"
+            allowfullscreen=""
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+          ></iframe>
+        </div>
+      </template>
+
       <div class="btn-row" style="margin-top:10px;">
         <button class="btn btn-outline" @click="openMap(a)">🗺️ 지도 보기</button>
         <button x-show="!isAdded(dayNum, a.id)" class="btn btn-primary" @click="toggleActivity(dayNum, a.id)" x-text="'Day ' + dayNum + '에 추가 +'"></button>
@@ -406,13 +432,21 @@
     <!-- ============ 체크리스트 ============ -->
     <section x-show="view === 'checklist'" class="app-view">
       <div class="section-title" style="margin-top:0;">✅ 여행 체크리스트</div>
-      <div class="card">
-        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;">
-          <span>전체 진행률</span><span style="font-weight:800; color:var(--primary);" x-text="checkProgress() + '%'"></span>
+      <div class="card" style="padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span style="font-size:14px; font-weight:700;">✅ 전체 진행률</span>
+          <span style="font-size:22px; font-weight:900; color:var(--primary);" x-text="checkProgress() + '%'"></span>
         </div>
-        <div style="height:10px; background:var(--bg-section); border-radius:6px; overflow:hidden;">
+        <!-- 기본 프로그레스 바 유지 -->
+        <div style="height:8px; background:var(--bg-section); border-radius:6px; overflow:hidden; margin-bottom:16px;">
           <div style="height:100%; background:var(--success); transition:width .4s ease;" :style="'width:' + checkProgress() + '%'"></div>
         </div>
+        <!-- Chart.js 도넛 -->
+        <div style="max-width:220px; margin:0 auto;">
+          <canvas id="checklistDonut" height="220"></canvas>
+        </div>
+        <!-- 카테고리별 범례 -->
+        <div id="checklistLegend" style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"></div>
       </div>
 
       <template x-for="cat in checklist" :key="cat.category">
@@ -480,6 +514,56 @@
         <template x-if="!weather.loaded">
           <div style="font-size:12px; color:var(--text-secondary);">불러오는 중… 6월 런던은 변덕스러우니 우산 챙기세요.</div>
         </template>
+      </div>
+
+      <div class="section-title">🚇 TfL 실시간 튜브 상태</div>
+      <div class="tfl-widget card">
+        <template x-if="!tfl.loaded">
+          <div style="font-size:13px; color:var(--text-light); text-align:center; padding:16px;">
+            TfL 상태 불러오는 중…
+          </div>
+        </template>
+        <template x-if="tfl.loaded">
+          <div>
+            <!-- 전체 정상 -->
+            <template x-if="tfl.lines.every(l => l.ok)">
+              <div class="tfl-all-good">
+                <span style="font-size:20px;">✅</span>
+                <span>전 노선 정상 운행 중</span>
+              </div>
+            </template>
+            <!-- 문제 노선 -->
+            <template x-if="!tfl.lines.every(l => l.ok)">
+              <div>
+                <template x-for="line in tfl.lines.filter(l => !l.ok)" :key="line.id">
+                  <div class="tfl-issue-row">
+                    <span class="tfl-dot" :style="'background:' + line.color"></span>
+                    <span class="tfl-name" x-text="line.name"></span>
+                    <span class="tfl-status-badge issue" x-text="tflStatusEmoji(line.severity) + ' ' + line.desc"></span>
+                  </div>
+                </template>
+                <div class="tfl-ok-summary">
+                  <template x-for="line in tfl.lines.filter(l => l.ok)" :key="line.id">
+                    <span class="tfl-ok-chip" :style="'background:' + line.color" x-text="line.name"></span>
+                  </template>
+                </div>
+              </div>
+            </template>
+            <!-- 정상 노선 칩 (전체 정상일 때) -->
+            <div class="tfl-chips" x-show="tfl.lines.every(l => l.ok)">
+              <template x-for="line in tfl.lines" :key="line.id">
+                <span class="tfl-ok-chip" :style="'background:' + line.color" x-text="line.name"></span>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+      <div style="font-size:12px; color:var(--text-light); margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
+        <span>5분마다 자동 갱신</span>
+        <a href="https://tfl.gov.uk/maps/track/tube" target="_blank"
+           style="color:var(--primary); font-size:12px; font-weight:600; text-decoration:none;">
+          🗺️ 전체 튜브맵 보기 →
+        </a>
       </div>
     </section>
 
