@@ -1,9 +1,5 @@
 // 우리 가족 런던 트립 — 메인 Alpine 앱
 function tripApp() {
-  // Chart.js 인스턴스는 Alpine 반응성(Proxy) 밖에 보관해야 함.
-  // this에 저장하면 Alpine이 Chart 내부 객체를 깊은 Proxy로 감싸 렌더가 깨짐.
-  let checklistChart = null;
-
   return {
     // ---- 상태 ----
     loaded: false,
@@ -118,10 +114,6 @@ function tripApp() {
         case 'tools': this.view = 'tools'; break;
         case 'emergency': this.view = 'emergency'; break;
         default: this.view = 'home';
-      }
-      // checklist 뷰로 전환 시 진행률 차트 초기화
-      if (this.view === 'checklist') {
-        this.$nextTick(() => this.initChecklistChart());
       }
       window.scrollTo(0, 0);
     },
@@ -363,9 +355,6 @@ function tripApp() {
     toggleCheck(id) {
       this.store.checklist[id] = !this.store.checklist[id];
       TripStorage.write(this.store);
-      if (this.view === 'checklist') {
-        this.$nextTick(() => this.initChecklistChart());
-      }
     },
     checkProgress() {
       const all = this.checklist.flatMap(c => c.items.map(i => i.id));
@@ -374,79 +363,11 @@ function tripApp() {
       return Math.round(done / all.length * 100);
     },
 
-    // 체크리스트 진행률 도넛 차트 (Chart.js)
-    initChecklistChart() {
-      const canvas = document.getElementById('checklistDonut');
-      if (!canvas || !window.Chart) return;
-
-      // 기존 차트 파괴 (재렌더 방지)
-      if (checklistChart) {
-        checklistChart.destroy();
-        checklistChart = null;
-      }
-
-      const COLORS = [
-        '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
-        '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'
-      ];
-
-      const labels = [];
-      const done = [];
-      const total = [];
-      const colors = [];
-
-      this.checklist.forEach((cat, i) => {
-        const doneCount = cat.items.filter(it => this.isChecked(it.id)).length;
-        labels.push(cat.emoji + ' ' + cat.category);
-        done.push(doneCount);
-        total.push(cat.items.length);
-        colors.push(COLORS[i % COLORS.length]);
-      });
-
-      const borderCol = getComputedStyle(document.documentElement)
-        .getPropertyValue('--bg-card').trim() || '#fff';
-
-      checklistChart = new Chart(canvas, {
-        type: 'doughnut',
-        data: {
-          labels,
-          datasets: [{
-            data: done.map((d, i) => (d === 0 && total[i] === 0) ? 0 : (d / total[i]) * total[i]),
-            backgroundColor: colors,
-            borderWidth: 2,
-            borderColor: borderCol
-          }, {
-            data: total.map((t, i) => t - done[i]),
-            backgroundColor: colors.map(c => c + '33'),
-            borderWidth: 0
-          }]
-        },
-        options: {
-          cutout: '65%',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => {
-                  const i = ctx.dataIndex;
-                  return ` ${done[i]}/${total[i]} 완료`;
-                }
-              }
-            }
-          }
-        }
-      });
-
-      // 범례 직접 생성
-      const legend = document.getElementById('checklistLegend');
-      if (legend) {
-        legend.innerHTML = labels.map((l, i) =>
-          `<span style="font-size:11px; display:flex; align-items:center; gap:4px;">
-            <span style="width:10px;height:10px;border-radius:50%;background:${colors[i]};display:inline-block;"></span>
-            ${l} ${done[i]}/${total[i]}
-          </span>`
-        ).join('');
-      }
+    // 카테고리별 진행률 (막대 게이지용)
+    catStats(cat) {
+      const total = (cat.items || []).length;
+      const done = (cat.items || []).filter(it => this.isChecked(it.id)).length;
+      return { done, total, pct: total ? Math.round(done / total * 100) : 0 };
     },
 
     // ---- 다크모드 ----
