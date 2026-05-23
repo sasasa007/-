@@ -570,6 +570,133 @@
           🗺️ 전체 튜브맵 보기 →
         </a>
       </div>
+
+      <!-- ====== 예산 분석 ====== -->
+      <div class="section-title">💷 예산 분석</div>
+
+      <!-- 총 예산 설정 -->
+      <div class="card" style="padding:14px 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:13px; font-weight:700;">총 여행 예산</span>
+          <button class="btn btn-sm btn-outline" @click="budget.editBudget = !budget.editBudget">
+            <span x-text="budget.editBudget ? '취소' : '설정'"></span>
+          </button>
+        </div>
+        <template x-if="!budget.editBudget">
+          <div style="margin-top:8px;">
+            <span style="font-size:26px; font-weight:900; color:var(--primary);">
+              £<span x-text="expenseBudget().toLocaleString()"></span>
+            </span>
+            <template x-if="currency.rate && expenseBudget() > 0">
+              <span style="font-size:12px; color:var(--text-light); margin-left:6px;"
+                x-text="'≈ ₩' + Math.round(expenseBudget() * currency.rate).toLocaleString()"></span>
+            </template>
+          </div>
+        </template>
+        <template x-if="budget.editBudget">
+          <div style="margin-top:10px; display:flex; gap:8px;">
+            <input type="number" placeholder="예: 2000" x-model="budget.newBudgetVal"
+              style="flex:1; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:var(--bg-card); color:var(--text-primary);">
+            <button class="btn btn-primary btn-sm" @click="setBudget(budget.newBudgetVal)">저장</button>
+          </div>
+        </template>
+      </div>
+
+      <!-- 지출 요약 바 -->
+      <template x-if="expenseBudget() > 0">
+        <div class="card" style="padding:14px 16px;">
+          <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px;">
+            <span>사용: <strong x-text="'£' + expenseTotal().toFixed(0)"></strong></span>
+            <span style="color:var(--text-light);">잔액: <strong style="color:var(--success);" x-text="'£' + (expenseBudget() - expenseTotal()).toFixed(0)"></strong></span>
+          </div>
+          <div style="height:10px; background:var(--bg-section); border-radius:6px; overflow:hidden; margin-bottom:14px;">
+            <div style="height:100%; border-radius:6px; transition:width .4s ease;"
+              :style="'width:' + Math.min(100, expenseTotal() / expenseBudget() * 100) + '%; background:' + (expenseTotal() > expenseBudget() ? 'var(--error)' : 'var(--primary)')"></div>
+          </div>
+          <!-- 카테고리별 바 -->
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <template x-for="[cat, amt] in Object.entries(expenseByCategory()).filter(([k,v]) => v > 0)" :key="cat">
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                  <span x-text="expenseCategoryLabel(cat)"></span>
+                  <span style="color:var(--text-light);" x-text="'£' + amt.toFixed(0)"></span>
+                </div>
+                <div style="height:6px; background:var(--bg-section); border-radius:4px; overflow:hidden;">
+                  <div style="height:100%; border-radius:4px; transition:width .4s ease;"
+                    :style="'width:' + Math.min(100, amt / expenseBudget() * 100) + '%; background:' + expenseCategoryColor(cat)"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+
+      <!-- 지출 내역 목록 -->
+      <template x-if="expenseItems().length > 0">
+        <div class="card" style="padding:8px 0;">
+          <template x-for="item in [...expenseItems()].reverse()" :key="item.id">
+            <div style="display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid var(--border);">
+              <span style="font-size:18px;" x-text="expenseCategoryLabel(item.category).split(' ')[0]"></span>
+              <div style="flex:1;">
+                <div style="font-size:13px; font-weight:700;" x-text="'£' + parseFloat(item.amount).toFixed(0)"></div>
+                <div style="font-size:11px; color:var(--text-light);" x-text="(item.memo || expenseCategoryLabel(item.category)) + ' · ' + item.date"></div>
+              </div>
+              <button style="background:none; border:none; color:var(--text-light); font-size:16px; cursor:pointer; padding:4px;"
+                @click="deleteExpense(item.id)">✕</button>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- 지출 추가 버튼 / 폼 -->
+      <template x-if="!budget.showForm">
+        <button class="btn btn-primary btn-block" style="margin-top:4px;" @click="budget.showForm = true">
+          + 지출 추가
+        </button>
+      </template>
+      <template x-if="budget.showForm">
+        <div class="card" style="padding:14px 16px;">
+          <div style="font-size:13px; font-weight:700; margin-bottom:10px;">지출 추가</div>
+          <!-- 카테고리 -->
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+            <template x-for="cat in ['food','transport','attraction','shopping','hotel','other']" :key="cat">
+              <button style="padding:5px 10px; border-radius:20px; border:1px solid var(--border); font-size:12px; cursor:pointer;"
+                :style="budget.newItem.category === cat ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : 'background:var(--bg-card);color:var(--text-primary);'"
+                @click="budget.newItem.category = cat"
+                x-text="expenseCategoryLabel(cat)">
+              </button>
+            </template>
+          </div>
+          <!-- 금액 -->
+          <input type="number" placeholder="금액 (£)" x-model="budget.newItem.amount"
+            style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:var(--bg-card); color:var(--text-primary); margin-bottom:8px; box-sizing:border-box;">
+          <!-- 메모 -->
+          <input type="text" placeholder="메모 (선택)" x-model="budget.newItem.memo"
+            style="width:100%; padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:var(--bg-card); color:var(--text-primary); margin-bottom:12px; box-sizing:border-box;">
+          <div class="btn-row">
+            <button class="btn btn-outline" @click="budget.showForm = false">취소</button>
+            <button class="btn btn-primary" @click="addExpense()">추가</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- AI 예산 분석 -->
+      <template x-if="expenseItems().length > 0">
+        <div style="margin-top:8px;">
+          <button class="btn btn-outline btn-block"
+            :disabled="budget.aiLoading"
+            @click="analyzeExpense()">
+            <span x-show="!budget.aiLoading">🎩 Butler 예산 분석</span>
+            <span x-show="budget.aiLoading"><span class="dot-pulse"></span> 분석 중…</span>
+          </button>
+          <template x-if="budget.aiAdvice">
+            <div class="card" style="margin-top:8px; padding:14px 16px; border-left:3px solid var(--primary);">
+              <div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:6px;">🎩 Butler 조언</div>
+              <div style="font-size:13px; line-height:1.6; color:var(--text-primary);" x-text="budget.aiAdvice"></div>
+            </div>
+          </template>
+        </div>
+      </template>
     </section>
 
     <!-- ============ 응급 ============ -->

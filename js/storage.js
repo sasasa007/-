@@ -6,7 +6,11 @@ window.TripStorage = (function () {
     trip: { startDate: '2026-06-15', endDate: '2026-06-22' },
     days: {},          // { "3": { activities: ["borough_market", ...] } }
     checklist: {},     // { "eta": true }
-    settings: { darkMode: false }
+    settings: { darkMode: false },
+    expenses: {
+      budget: 0,       // 총 여행 예산 (£)
+      items: []        // { id, date, category, amount, memo, createdAt }
+    }
   });
 
   function read() {

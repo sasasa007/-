@@ -37,6 +37,16 @@ function tripApp() {
     // TfL 튜브 상태
     tfl: { loaded: false, lines: [] },
 
+    // 예산 분석
+    budget: {
+      showForm: false,
+      editBudget: false,
+      newBudgetVal: '',
+      newItem: { category: 'food', amount: '', memo: '' },
+      aiLoading: false,
+      aiAdvice: null
+    },
+
     // 경로 최적화
     routeResult: null,   // { timeline, totalTime, tubeLines, advice, intro }
     routeLoading: false,
@@ -483,6 +493,97 @@ function tripApp() {
         });
       }
       this.toggleActivity(this.dayNum, card.id);
+    },
+
+    // ---- 예산 분석 ----
+    expenseItems() {
+      return (this.store.expenses && this.store.expenses.items) || [];
+    },
+    expenseTotal() {
+      return this.expenseItems().reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+    },
+    expenseByCategory() {
+      const cats = { food: 0, transport: 0, attraction: 0, shopping: 0, hotel: 0, other: 0 };
+      this.expenseItems().forEach(i => {
+        if (cats[i.category] !== undefined) cats[i.category] += parseFloat(i.amount) || 0;
+        else cats.other += parseFloat(i.amount) || 0;
+      });
+      return cats;
+    },
+    expenseBudget() {
+      return parseFloat((this.store.expenses && this.store.expenses.budget) || 0);
+    },
+    setBudget(val) {
+      if (!this.store.expenses) this.store.expenses = { budget: 0, items: [] };
+      this.store.expenses.budget = parseFloat(val) || 0;
+      TripStorage.write(this.store);
+      this.budget.editBudget = false;
+    },
+    addExpense() {
+      const amt = parseFloat(this.budget.newItem.amount);
+      if (!amt || amt <= 0) return;
+      if (!this.store.expenses) this.store.expenses = { budget: 0, items: [] };
+      const item = {
+        id: Date.now().toString() + '-' + Math.random().toString(36).slice(2, 7),
+        date: new Date().toISOString().slice(0, 10),
+        category: this.budget.newItem.category,
+        amount: amt,
+        memo: this.budget.newItem.memo.trim(),
+        createdAt: new Date().toISOString()
+      };
+      this.store.expenses.items.push(item);
+      TripStorage.write(this.store);
+      this.budget.newItem = { category: 'food', amount: '', memo: '' };
+      this.budget.showForm = false;
+    },
+    deleteExpense(id) {
+      if (!this.store.expenses) return;
+      this.store.expenses.items = this.store.expenses.items.filter(i => i.id !== id);
+      TripStorage.write(this.store);
+    },
+    expenseCategoryLabel(cat) {
+      const map = { food: '🍽️ 식비', transport: '🚇 교통', attraction: '🏛️ 관광', shopping: '🛍️ 쇼핑', hotel: '🏨 호텔', other: '📦 기타' };
+      return map[cat] || cat;
+    },
+    expenseCategoryColor(cat) {
+      const map = { food: '#f59e0b', transport: '#3b82f6', attraction: '#10b981', shopping: '#ec4899', hotel: '#8b5cf6', other: '#6b7280' };
+      return map[cat] || '#6b7280';
+    },
+    async analyzeExpense() {
+      if (this.budget.aiLoading) return;
+      this.budget.aiLoading = true;
+      this.budget.aiAdvice = null;
+      try {
+        const total = this.expenseTotal();
+        const budgetAmt = this.expenseBudget();
+        const byCat = this.expenseByCategory();
+        const remaining = budgetAmt - total;
+        const today = new Date();
+        const endDate = new Date('2026-06-22');
+        const daysLeft = Math.max(0, Math.ceil((endDate - today) / 86400000));
+
+        const query = `황씨 가족 런던 여행 예산 분석을 해주세요.
+총 예산: £${budgetAmt}
+현재까지 지출: £${total.toFixed(2)}
+잔액: £${remaining.toFixed(2)}
+남은 여행일: ${daysLeft}일
+카테고리별 지출:
+${Object.entries(byCat).map(([k, v]) => `- ${this.expenseCategoryLabel(k)}: £${v.toFixed(2)}`).join('\n')}
+
+남은 일정을 위한 예산 운용 조언을 실용적으로 해주세요.`;
+
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, context: {}, taskType: 'general', useWebSearch: false })
+        });
+        const data = await res.json();
+        this.budget.aiAdvice = data.answer || data.intro || '분석 결과를 불러올 수 없어요.';
+      } catch (e) {
+        this.budget.aiAdvice = '연결 오류가 발생했어요. 잠시 후 다시 시도해주세요.';
+      } finally {
+        this.budget.aiLoading = false;
+      }
     },
 
     // ---- 경로 최적화 ----
