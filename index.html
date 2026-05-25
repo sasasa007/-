@@ -204,9 +204,17 @@
       </template>
 
       <!-- 내가 추가한 활동 -->
-      <div class="section-title">🧳 내가 추가한 활동
-        <span style="font-size:12px; color:var(--text-light); font-weight:600;"
-          x-text="'(' + dayActivities(dayNum).length + ')'"></span>
+      <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>📋 오늘의 일정
+          <span style="font-size:12px; color:var(--text-light); font-weight:600;"
+            x-text="'(' + dayActivities(dayNum).length + ')'"></span>
+        </span>
+        <button
+          class="btn btn-sm btn-outline"
+          style="font-size:11px; padding:3px 10px; color:var(--text-light);"
+          @click="resetDayToDefault(dayNum)">
+          🔄 기본으로
+        </button>
       </div>
       <template x-if="dayActivities(dayNum).length === 0">
         <div class="empty" style="padding:20px;">아직 추가한 활동이 없어요.<br>아래에서 Zone을 골라 활동을 담아보세요.</div>
@@ -219,7 +227,31 @@
               <div class="ci-title" x-text="a.nameKo || a.name"></div>
               <div class="ci-sub" x-text="typeLabel(a.type) + ' · ' + (a.duration || '')"></div>
             </div>
-            <button class="btn btn-sm btn-outline" @click="toggleActivity(dayNum, a.id)">빼기</button>
+            <!-- 날짜 이동 -->
+            <div x-data="{ showMover: false }" style="position:relative;">
+              <button
+                class="btn btn-sm btn-outline"
+                style="font-size:11px; padding:4px 8px;"
+                @click.stop="showMover = !showMover"
+                title="날짜 이동">
+                📅
+              </button>
+              <div
+                x-show="showMover"
+                @click.outside="showMover = false"
+                style="position:absolute; right:0; top:36px; z-index:50; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:6px; box-shadow:0 4px 16px rgba(0,0,0,.15); min-width:120px;">
+                <div style="font-size:11px; color:var(--text-light); padding:4px 8px; font-weight:600;">다른 날로 이동</div>
+                <template x-for="d in days.filter(d => d.day !== dayNum)" :key="d.day">
+                  <button
+                    class="btn btn-sm"
+                    style="width:100%; text-align:left; padding:5px 8px; font-size:12px; background:none; border:none; border-radius:6px;"
+                    @click="moveActivity(dayNum, d.day, a.id); showMover = false"
+                    x-text="'Day ' + d.day + ' ' + d.emoji + ' ' + d.dayOfWeek">
+                  </button>
+                </template>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-outline" style="font-size:11px;" @click="toggleActivity(dayNum, a.id)">빼기</button>
           </div>
         </template>
       </div>

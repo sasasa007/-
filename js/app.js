@@ -93,6 +93,17 @@ function tripApp() {
         ]);
 
       this.days = days;
+
+      // 첫 실행 또는 빈 날짜에 기본 활동 자동 세팅 (이미 활동이 있는 날은 보존)
+      let storeChanged = false;
+      this.days.forEach(d => {
+        if (!this.store.days[d.day] || !(this.store.days[d.day].activities || []).length) {
+          this.store.days[d.day] = { activities: [...(d.defaultActivityIds || [])] };
+          storeChanged = true;
+        }
+      });
+      if (storeChanged) TripStorage.write(this.store);
+
       this.zones = zones;
       this.confirmed = confirmed;
       this.activities = [...att, ...res, ...shop, ...pub];
@@ -641,6 +652,32 @@ ${selected.map(a => `- ${a.nameKo || a.name} [${a.type}] Zone:${a.zone} 소요:$
     clearRoute() {
       this.routeResult = null;
       this.routeDayNum = null;
+    },
+
+    resetDayToDefault(n) {
+      const day = this.days.find(d => d.day === n);
+      if (!day) return;
+      if (!confirm(`Day ${n} 일정을 기본으로 초기화할까요?\n현재 추가한 활동이 모두 사라집니다.`)) return;
+      this.store.days[n] = { activities: [...(day.defaultActivityIds || [])] };
+      TripStorage.write(this.store);
+      this.routeResult = null;
+    },
+
+    moveActivity(fromDay, toDay, id) {
+      if (fromDay === toDay) return;
+      // fromDay에서 제거
+      if (this.store.days[fromDay] && this.store.days[fromDay].activities) {
+        const arr = this.store.days[fromDay].activities;
+        const i = arr.indexOf(id);
+        if (i >= 0) arr.splice(i, 1);
+      }
+      // toDay에 추가 (중복 방지)
+      if (!this.store.days[toDay]) this.store.days[toDay] = { activities: [] };
+      if (!this.store.days[toDay].activities.includes(id)) {
+        this.store.days[toDay].activities.push(id);
+      }
+      TripStorage.write(this.store);
+      if (this.routeDayNum === fromDay) this.routeResult = null;
     },
 
     async loadCardInsight(a) {

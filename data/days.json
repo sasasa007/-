@@ -8,7 +8,8 @@
     "baseZone": "A",
     "concept": "도착 + 호텔 체크인 + 가벼운 동네 산책",
     "emoji": "✈️",
-    "note": "LHR 17:20 도착 → 호텔 19:30 예상. 첫날은 무리하지 않기."
+    "note": "LHR 17:20 도착 → 호텔 19:30 예상. 첫날은 무리하지 않기.",
+    "defaultActivityIds": ["covent_garden", "seven_dials", "dishoom"]
   },
   {
     "day": 2,
@@ -19,7 +20,8 @@
     "baseZone": "A",
     "concept": "윔블던 투어 + 박물관",
     "emoji": "🎾",
-    "note": "Wimbledon Tour + Museum 14:30 예약 확정 ✅. 오전 여유."
+    "note": "Wimbledon Tour + Museum 14:30 예약 확정 ✅. 오전 여유.",
+    "defaultActivityIds": ["transport_museum", "national_gallery", "leicester_square"]
   },
   {
     "day": 3,
@@ -30,7 +32,8 @@
     "baseZone": "A",
     "concept": "코벤트가든 + 소호 + 웨스트엔드 뮤지컬",
     "emoji": "🎭",
-    "note": "Matilda 등 웨스트엔드 뮤지컬 추천. 호텔 도보권 활용."
+    "note": "Matilda 등 웨스트엔드 뮤지컬 추천. 호텔 도보권 활용.",
+    "defaultActivityIds": ["hamleys", "lego_store", "chinatown", "trafalgar_square", "b_bagel"]
   },
   {
     "day": 4,
@@ -41,7 +44,8 @@
     "baseZone": "B",
     "concept": "웨스트민스터 + 호텔 이동 (조식 호텔로)",
     "emoji": "🏛️",
-    "note": "오전 체크아웃 → 짐 보관 → 저녁 Royal Horseguards 체크인. 빅벤·웨스트민스터 도보권."
+    "note": "오전 체크아웃 → 짐 보관 → 저녁 Royal Horseguards 체크인. 빅벤·웨스트민스터 도보권.",
+    "defaultActivityIds": ["big_ben", "westminster_abbey", "horse_guards_parade", "st_james_park", "regency_cafe"]
   },
   {
     "day": 5,
@@ -52,7 +56,8 @@
     "baseZone": "C",
     "concept": "타워 브리지 + 버러 마켓 + 강변",
     "emoji": "🌉",
-    "note": "Borough Market 금요일 운영. 호텔 키친용 식재료 픽업도 가능."
+    "note": "Borough Market 금요일 운영. 호텔 키친용 식재료 픽업도 가능.",
+    "defaultActivityIds": ["borough_market", "tower_bridge", "tower_of_london", "sky_garden", "padella"]
   },
   {
     "day": 6,
@@ -63,7 +68,8 @@
     "baseZone": "D",
     "concept": "포토벨로 마켓 + 노팅힐 (토요일 大마켓)",
     "emoji": "🎨",
-    "note": "토요일은 Portobello Market 절정. 컬러풀한 거리 사진 명소."
+    "note": "토요일은 Portobello Market 절정. 컬러풀한 거리 사진 명소.",
+    "defaultActivityIds": ["portobello_market", "notting_hill_street", "notting_hill_bookshop", "granger_co"]
   },
   {
     "day": 7,
@@ -74,7 +80,8 @@
     "baseZone": "E",
     "concept": "해롯 + 자유 일정 + 마지막 정리",
     "emoji": "👑",
-    "note": "Knightsbridge 럭셔리 쇼핑. 마지막 밤 정리·일기."
+    "note": "Knightsbridge 럭셔리 쇼핑. 마지막 밤 정리·일기.",
+    "defaultActivityIds": ["harrods", "harvey_nichols", "harrods_food_hall", "buckingham_palace", "london_eye"]
   },
   {
     "day": 8,
@@ -85,6 +92,7 @@
     "baseZone": "A",
     "concept": "체크아웃 + 마지막 쇼핑 + 공항",
     "emoji": "🛫",
-    "note": "LHR 19:35 출발. 오후 일찍 공항 이동 권장."
+    "note": "LHR 19:35 출발. 오후 일찍 공항 이동 권장.",
+    "defaultActivityIds": ["fortnum_mason", "national_gallery"]
   }
 ]
