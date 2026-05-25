@@ -60,7 +60,7 @@ export default async (req) => {
 
   // 모델 선택 (PRD §3.3)
   function selectModel() {
-    if (taskType === 'route_optimization') return 'claude-opus-4-6';
+    if (taskType === 'route_optimization') return 'claude-sonnet-4-6';
     if (useWebSearch) return 'claude-sonnet-4-6';
     return 'claude-haiku-4-5';
   }
@@ -173,7 +173,7 @@ ${JSON.stringify(context, null, 2)}
       },
       body: JSON.stringify({
         model: selectModel(),
-        max_tokens: taskType === 'route_optimization' ? 4000 : 2000,
+        max_tokens: taskType === 'route_optimization' ? 1500 : 2000,
         system: taskType === 'route_optimization' ? routeSystemPrompt : systemPrompt,
         tools: tools.length ? tools : undefined,
         messages: [{ role: 'user', content: query }]

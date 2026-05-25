@@ -396,10 +396,36 @@
         <template x-for="t in (a.tags || [])" :key="t"><span class="tag" x-text="t"></span></template>
       </div>
 
-      <!-- Butler 인사이트 (Phase 2) -->
-      <div class="insight-box">
-        <div class="ib-title">🎩 Butler 인사이트</div>
-        실시간 운영 상태·혼잡도·추천 메뉴·근처 발견은 Phase 2(AI 통합)에서 자동으로 채워져요.
+      <!-- Butler 인사이트 -->
+      <div class="insight-box" style="padding:0;">
+        <!-- 인사이트 미로드 상태 -->
+        <template x-if="!cardInsight">
+          <div style="padding:14px 16px;">
+            <div class="ib-title">🎩 Butler 인사이트</div>
+            <button
+              class="btn btn-outline btn-block"
+              style="margin-top:10px; font-size:13px;"
+              :disabled="cardInsightLoading"
+              @click="loadCardInsight(a)">
+              <span x-show="!cardInsightLoading">✨ 이 장소 버틀러 분석 받기</span>
+              <span x-show="cardInsightLoading">🎩 분석 중…</span>
+            </button>
+          </div>
+        </template>
+        <!-- 인사이트 로드됨 -->
+        <template x-if="cardInsight">
+          <div style="padding:14px 16px;">
+            <div class="ib-title" style="margin-bottom:8px;">🎩 Butler 인사이트</div>
+            <div style="font-size:13px; line-height:1.7; color:var(--text-primary);" x-text="cardInsight"></div>
+            <button
+              class="btn btn-sm btn-outline"
+              style="margin-top:10px; font-size:11px; padding:4px 10px;"
+              :disabled="cardInsightLoading"
+              @click="loadCardInsight(a)">
+              🔄 다시 분석
+            </button>
+          </div>
+        </template>
       </div>
 
       <button class="btn btn-outline btn-block" style="margin-top:14px;" @click="openEtiquette(a)">🎩 영국 매너 가이드 보기</button>
@@ -506,6 +532,43 @@
           <div style="font-size:12px; color:var(--text-secondary);">불러오는 중…</div>
         </template>
       </div>
+
+      <!-- 환율 계산기 -->
+      <template x-if="currency.loaded && !currency.failed">
+        <div class="card" style="padding:16px;">
+          <div style="font-size:13px; font-weight:700; margin-bottom:10px;">🧮 환율 계산기</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="position:relative; flex:1;">
+              <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); font-weight:700; color:var(--primary);">£</span>
+              <input
+                type="number"
+                inputmode="decimal"
+                placeholder="0"
+                x-model="calc.gbp"
+                style="width:100%; padding:10px 10px 10px 28px; border:1.5px solid var(--border); border-radius:10px; font-size:18px; font-weight:700; background:var(--bg-section); color:var(--text-primary); box-sizing:border-box;"
+              />
+            </div>
+            <span style="font-size:20px; color:var(--text-light);">＝</span>
+            <div style="flex:1; text-align:right;">
+              <div style="font-size:20px; font-weight:900; color:var(--primary);"
+                x-text="calc.gbp ? '₩' + Math.round(parseFloat(calc.gbp) * currency.rate).toLocaleString() : '₩ —'">
+              </div>
+              <div style="font-size:11px; color:var(--text-light); margin-top:2px;" x-text="'£1 = ₩' + currency.rate.toLocaleString()"></div>
+            </div>
+          </div>
+          <!-- 빠른 금액 버튼 -->
+          <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
+            <template x-for="amt in [5, 10, 20, 50, 100]" :key="amt">
+              <button
+                class="btn btn-sm btn-outline"
+                style="flex:1; min-width:48px; font-size:12px; padding:5px 2px;"
+                @click="calc.gbp = amt"
+                x-text="'£' + amt">
+              </button>
+            </template>
+          </div>
+        </div>
+      </template>
 
       <div class="section-title">🌤️ 런던 날씨</div>
       <div class="card" style="display:flex; gap:12px; align-items:center;">

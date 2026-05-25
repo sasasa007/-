@@ -34,6 +34,9 @@ function tripApp() {
     weather: { loaded: false, tempC: '', desc: '', humidity: '', wind: '', icon: '' },
     currency: { loaded: false, rate: 0, date: '' },
 
+    // 환율 계산기
+    calc: { gbp: '' },
+
     // TfL 튜브 상태
     tfl: { loaded: false, lines: [] },
 
@@ -46,6 +49,10 @@ function tripApp() {
       aiLoading: false,
       aiAdvice: null
     },
+
+    // 명소 카드 Butler 인사이트
+    cardInsight: null,
+    cardInsightLoading: false,
 
     // 경로 최적화
     routeResult: null,   // { timeline, totalTime, tubeLines, advice, intro }
@@ -119,7 +126,13 @@ function tripApp() {
       switch (v) {
         case 'day': this.view = 'day'; this.dayNum = +a || 1; break;
         case 'zone': this.view = 'zone'; this.zoneId = a; if (b) this.dayNum = +b; this.typeFilter = 'all'; break;
-        case 'card': this.view = 'card'; this.cardId = a; if (b) this.dayNum = +b; break;
+        case 'card':
+          this.view = 'card';
+          this.cardId = a;
+          if (b) this.dayNum = +b;
+          this.cardInsight = null;
+          this.cardInsightLoading = false;
+          break;
         case 'checklist': this.view = 'checklist'; break;
         case 'tools': this.view = 'tools'; break;
         case 'emergency': this.view = 'emergency'; break;
@@ -628,6 +641,32 @@ ${selected.map(a => `- ${a.nameKo || a.name} [${a.type}] Zone:${a.zone} 소요:$
     clearRoute() {
       this.routeResult = null;
       this.routeDayNum = null;
+    },
+
+    async loadCardInsight(a) {
+      if (this.cardInsightLoading) return;
+      this.cardInsightLoading = true;
+      const query = `"${a.nameKo || a.name}" 명소에 대해 황씨 가족 관점에서 알려줘.
+혼잡도, 베스트 방문 시간, 가족(자녀 12세)에게 유용한 현장 팁, 놓치지 말아야 할 포인트, 주변 맛집/카페를 간결하게 2~3문장으로.
+이미 알고 있는 기본 정보(주소, 요금 등)는 반복하지 말고, 현장 경험 중심으로.`;
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query,
+            context: { attraction: { name: a.name, nameKo: a.nameKo, zone: a.zone, type: a.type, address: a.address } },
+            taskType: 'general',
+            useWebSearch: false
+          })
+        });
+        const data = await res.json();
+        this.cardInsight = data.answer || data.intro || '정보를 불러올 수 없어요.';
+      } catch (e) {
+        this.cardInsight = '연결 오류가 발생했어요. 다시 시도해주세요.';
+      } finally {
+        this.cardInsightLoading = false;
+      }
     },
 
     routeTypeIcon(type) {
