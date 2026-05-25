@@ -204,20 +204,15 @@
       </template>
 
       <!-- 내가 추가한 활동 -->
-      <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
-        <span>📋 오늘의 일정
-          <span style="font-size:12px; color:var(--text-light); font-weight:600;"
-            x-text="'(' + dayActivities(dayNum).length + ')'"></span>
-        </span>
-        <button
-          class="btn btn-sm btn-outline"
-          style="font-size:11px; padding:3px 10px; color:var(--text-light);"
-          @click="resetDayToDefault(dayNum)">
-          🔄 기본으로
-        </button>
+      <div class="section-title">📋 오늘의 일정
+        <span style="font-size:12px; color:var(--text-light); font-weight:600;"
+          x-text="'(' + dayActivities(dayNum).length + ')'"></span>
       </div>
       <template x-if="dayActivities(dayNum).length === 0">
-        <div class="empty" style="padding:20px;">아직 추가한 활동이 없어요.<br>아래에서 Zone을 골라 활동을 담아보세요.</div>
+        <div class="empty" style="padding:20px;">
+          아직 일정이 없어요.<br>
+          아래 추천에서 추가하거나 Zone을 탐색해보세요 🗺️
+        </div>
       </template>
       <div style="display:flex; flex-direction:column; gap:10px;">
         <template x-for="a in dayActivities(dayNum)" :key="a.id">
@@ -328,6 +323,44 @@
           <template x-if="routeResult && routeDayNum === dayNum && routeResult.error">
             <div class="route-error" x-text="'⚠️ ' + routeResult.error"></div>
           </template>
+        </div>
+      </template>
+
+      <!-- ===== 오늘의 추천 일정 ===== -->
+      <template x-if="daySuggestions(dayNum).length > 0">
+        <div>
+          <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>💡 오늘의 추천 일정</span>
+            <button
+              class="btn btn-sm btn-outline"
+              style="font-size:11px; padding:3px 10px;"
+              @click="addAllSuggestions(dayNum)">
+              ＋ 전체 추가
+            </button>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <template x-for="a in daySuggestions(dayNum)" :key="a.id">
+              <div class="confirmed-item" style="border-left-color:var(--border); opacity:0.85;">
+                <span style="font-size:20px;" x-text="a.emoji"></span>
+                <div style="flex:1;" @click="goCard(a.id)">
+                  <div class="ci-title" x-text="a.nameKo || a.name"></div>
+                  <div class="ci-sub" x-text="typeLabel(a.type) + ' · ' + (a.duration || '')"></div>
+                </div>
+                <button
+                  class="btn btn-sm btn-primary"
+                  style="font-size:11px; padding:4px 12px;"
+                  @click="addSuggestion(dayNum, a.id)">
+                  ＋ 추가
+                </button>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+      <!-- 추천이 모두 추가된 경우 -->
+      <template x-if="daySuggestions(dayNum).length === 0 && dayActivities(dayNum).length > 0">
+        <div style="font-size:12px; color:var(--text-light); text-align:center; padding:8px 0; margin-bottom:4px;">
+          💡 추천 일정을 모두 담았어요. Zone을 탐색해 더 추가해보세요.
         </div>
       </template>
 
@@ -664,6 +697,82 @@
            style="color:var(--primary); font-size:12px; font-weight:600; text-decoration:none;">
           🗺️ 전체 튜브맵 보기 →
         </a>
+      </div>
+
+      <!-- ===== 여행일기 ===== -->
+      <div class="section-title">📔 여행일기</div>
+      <div class="card" style="padding:16px;">
+        <!-- Day 선택 탭 -->
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
+          <template x-for="d in days" :key="d.day">
+            <button
+              class="btn btn-sm"
+              :style="diaryEntry(d.day)
+                ? 'background:var(--primary); color:#fff; border-color:var(--primary);'
+                : 'background:var(--bg-section); color:var(--text-secondary); border:1px solid var(--border);'"
+              style="font-size:12px; padding:5px 10px; border-radius:20px;"
+              @click="diary.currentDay = d.day"
+              x-text="'Day' + d.day + ' ' + d.emoji">
+            </button>
+          </template>
+        </div>
+
+        <!-- 선택된 Day 없을 때 -->
+        <template x-if="!diary.currentDay">
+          <div style="font-size:13px; color:var(--text-light); text-align:center; padding:16px 0;">
+            위에서 날짜를 선택하면 일기를 볼 수 있어요 📖
+          </div>
+        </template>
+
+        <!-- 선택된 Day 있을 때 -->
+        <template x-if="diary.currentDay">
+          <div>
+            <!-- 일기 있을 때 -->
+            <template x-if="diaryEntry(diary.currentDay)">
+              <div>
+                <div style="font-size:13px; line-height:1.9; color:var(--text-primary); white-space:pre-wrap;"
+                  x-text="diaryEntry(diary.currentDay).text">
+                </div>
+                <div style="font-size:11px; color:var(--text-light); margin-top:8px;"
+                  x-text="'작성: ' + new Date(diaryEntry(diary.currentDay).createdAt).toLocaleDateString('ko-KR')">
+                </div>
+                <div style="display:flex; gap:8px; margin-top:12px;">
+                  <button
+                    class="btn btn-outline btn-sm"
+                    style="flex:1; font-size:12px;"
+                    :disabled="diary.loading"
+                    @click="generateDiary(diary.currentDay)">
+                    <span x-show="!diary.loading">🔄 다시 쓰기</span>
+                    <span x-show="diary.loading">✍️ 작성 중…</span>
+                  </button>
+                  <button
+                    class="btn btn-outline btn-sm"
+                    style="color:var(--error); border-color:var(--error); font-size:12px;"
+                    @click="deleteDiary(diary.currentDay)">
+                    🗑️ 삭제
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <!-- 일기 없을 때 -->
+            <template x-if="!diaryEntry(diary.currentDay)">
+              <div style="text-align:center; padding:8px 0 4px;">
+                <div style="font-size:13px; color:var(--text-light); margin-bottom:14px;">
+                  Day <span x-text="diary.currentDay"></span>의 일기가 아직 없어요.<br>
+                  오늘 다녀온 곳들을 Butler가 일기로 써드려요 ✍️
+                </div>
+                <button
+                  class="btn btn-primary btn-block"
+                  :disabled="diary.loading"
+                  @click="generateDiary(diary.currentDay)">
+                  <span x-show="!diary.loading">📔 AI 일기 작성하기</span>
+                  <span x-show="diary.loading">✍️ Butler가 일기 쓰는 중…</span>
+                </button>
+              </div>
+            </template>
+          </div>
+        </template>
       </div>
 
       <!-- ====== 예산 분석 ====== -->

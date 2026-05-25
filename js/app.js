@@ -50,6 +50,12 @@ function tripApp() {
       aiAdvice: null
     },
 
+    // 여행일기
+    diary: {
+      loading: false,
+      currentDay: null
+    },
+
     // 명소 카드 Butler 인사이트
     cardInsight: null,
     cardInsightLoading: false,
@@ -93,17 +99,6 @@ function tripApp() {
         ]);
 
       this.days = days;
-
-      // 첫 실행 또는 빈 날짜에 기본 활동 자동 세팅 (이미 활동이 있는 날은 보존)
-      let storeChanged = false;
-      this.days.forEach(d => {
-        if (!this.store.days[d.day] || !(this.store.days[d.day].activities || []).length) {
-          this.store.days[d.day] = { activities: [...(d.defaultActivityIds || [])] };
-          storeChanged = true;
-        }
-      });
-      if (storeChanged) TripStorage.write(this.store);
-
       this.zones = zones;
       this.confirmed = confirmed;
       this.activities = [...att, ...res, ...shop, ...pub];
@@ -231,7 +226,7 @@ function tripApp() {
 
     async fetchCurrency() {
       try {
-        const res = await fetch('/.netlify/functions/butler?type=currency', { cache: 'no-cache' });
+        const res = await fetch('https://api.frankfurter.dev/v1/latest?base=GBP&symbols=KRW', { cache: 'no-cache' });
         const d = await res.json();
         this.currency = {
           loaded: true,
@@ -654,15 +649,6 @@ ${selected.map(a => `- ${a.nameKo || a.name} [${a.type}] Zone:${a.zone} 소요:$
       this.routeDayNum = null;
     },
 
-    resetDayToDefault(n) {
-      const day = this.days.find(d => d.day === n);
-      if (!day) return;
-      if (!confirm(`Day ${n} 일정을 기본으로 초기화할까요?\n현재 추가한 활동이 모두 사라집니다.`)) return;
-      this.store.days[n] = { activities: [...(day.defaultActivityIds || [])] };
-      TripStorage.write(this.store);
-      this.routeResult = null;
-    },
-
     moveActivity(fromDay, toDay, id) {
       if (fromDay === toDay) return;
       // fromDay에서 제거
@@ -678,6 +664,37 @@ ${selected.map(a => `- ${a.nameKo || a.name} [${a.type}] Zone:${a.zone} 소요:$
       }
       TripStorage.write(this.store);
       if (this.routeDayNum === fromDay) this.routeResult = null;
+    },
+
+    // 오늘의 추천 — 아직 내 일정에 없는 defaultActivityIds 항목만 반환
+    daySuggestions(n) {
+      const day = this.days.find(d => d.day === n);
+      if (!day || !day.defaultActivityIds) return [];
+      const added = (this.store.days[n] && this.store.days[n].activities) || [];
+      return day.defaultActivityIds
+        .filter(id => !added.includes(id))
+        .map(id => this.activities.find(a => a.id === id))
+        .filter(Boolean);
+    },
+    // 추천 1개 추가
+    addSuggestion(n, id) {
+      if (!this.store.days[n]) this.store.days[n] = { activities: [] };
+      if (!this.store.days[n].activities.includes(id)) {
+        this.store.days[n].activities.push(id);
+        TripStorage.write(this.store);
+      }
+    },
+    // 추천 전체 추가
+    addAllSuggestions(n) {
+      const suggestions = this.daySuggestions(n);
+      if (!suggestions.length) return;
+      if (!this.store.days[n]) this.store.days[n] = { activities: [] };
+      suggestions.forEach(a => {
+        if (!this.store.days[n].activities.includes(a.id)) {
+          this.store.days[n].activities.push(a.id);
+        }
+      });
+      TripStorage.write(this.store);
     },
 
     async loadCardInsight(a) {
@@ -703,6 +720,78 @@ ${selected.map(a => `- ${a.nameKo || a.name} [${a.type}] Zone:${a.zone} 소요:$
         this.cardInsight = '연결 오류가 발생했어요. 다시 시도해주세요.';
       } finally {
         this.cardInsightLoading = false;
+      }
+    },
+
+    // ---- 여행일기 ----
+    diaryEntry(n) {
+      return (this.store.diary && this.store.diary[n]) || null;
+    },
+
+    async generateDiary(n) {
+      if (this.diary.loading) return;
+      this.diary.loading = true;
+      // 주의: diary.currentDay는 탭 선택용이므로 여기서 변경하지 않음 (생성 후 탭 유지)
+
+      const dayObj = this.days.find(d => d.day === n) || {};
+      const activities = this.dayActivities(n);
+      const confirmed = this.confirmedForDay(n);
+      const existing = this.diaryEntry(n);
+
+      const allItems = [
+        ...confirmed.map(c => c.title + (c.sub ? ' (' + c.sub + ')' : '')),
+        ...activities.map(a => a.nameKo || a.name)
+      ];
+
+      if (!allItems.length) {
+        alert('이 날의 활동이 없어요. 먼저 활동을 추가해주세요.');
+        this.diary.loading = false;
+        return;
+      }
+
+      const query = `황씨 가족의 런던 여행 Day ${n} (${dayObj.date || ''}, ${dayObj.concept || ''}) 일기를 써줘.
+
+오늘의 활동:
+${allItems.map((a, i) => `${i + 1}. ${a}`).join('\n')}
+
+조건:
+- 아빠(에드워드), 엄마(유효정), 자녀(12세) 3인 가족 시점
+- 생생하고 따뜻한 여행일기 스타일, 감성적으로
+- 각 장소의 인상, 가족 간 에피소드 상상, 음식·날씨·분위기 묘사
+- 200~300자 한국어, 이모지 2~3개 자연스럽게 포함
+- 제목 포함 (예: "Day ${n}. ${dayObj.concept || '런던에서의 하루'}")
+${existing ? '\n※ 기존 일기가 있음. 다른 시각·에피소드로 새로 작성.' : ''}`;
+
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query,
+            context: { day: n, concept: dayObj.concept, date: dayObj.date },
+            taskType: 'general',
+            useWebSearch: false
+          })
+        });
+        const data = await res.json();
+        const text = data.answer || data.intro || '';
+        if (text) {
+          if (!this.store.diary) this.store.diary = {};
+          this.store.diary[n] = { text, createdAt: new Date().toISOString() };
+          TripStorage.write(this.store);
+        }
+      } catch (e) {
+        alert('일기 생성 오류. 다시 시도해주세요.');
+      } finally {
+        this.diary.loading = false;
+      }
+    },
+
+    deleteDiary(n) {
+      if (!confirm(`Day ${n} 일기를 삭제할까요?`)) return;
+      if (this.store.diary) {
+        delete this.store.diary[n];
+        TripStorage.write(this.store);
       }
     },
 

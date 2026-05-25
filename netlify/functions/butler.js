@@ -14,25 +14,6 @@ export default async (req) => {
     });
   }
 
-  // 환율 프록시: GET /.netlify/functions/butler?type=currency
-  if (req.method === 'GET') {
-    const url = new URL(req.url);
-    if (url.searchParams.get('type') === 'currency') {
-      try {
-        const r = await fetch('https://api.frankfurter.app/latest?from=GBP&to=KRW');
-        const d = await r.json();
-        return new Response(JSON.stringify(d), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: '환율 정보를 불러올 수 없습니다.' }), {
-          status: 502,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
-    }
-  }
-
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
   }
