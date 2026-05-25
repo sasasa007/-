@@ -436,9 +436,23 @@
 
     <!-- ============ 활동 카드 상세 ============ -->
     <section x-show="view === 'card'" class="app-view" x-data="{ get a() { return card(); } }">
-      <div class="detail-hero" :style="heroBg(a.zone)">
-        <span x-text="a.emoji"></span>
-      </div>
+      <!-- 히어로: 사진이 있으면 사진, 없으면 존 색상 배경 -->
+      <template x-if="a.photo">
+        <div style="width:100%; height:200px; overflow:hidden; border-radius:0; margin:-16px -16px 0; position:relative;">
+          <img
+            :src="a.photo"
+            :alt="a.nameKo || a.name"
+            style="width:100%; height:100%; object-fit:cover; display:block;"
+            loading="lazy"
+            onerror="this.parentElement.style.display='none'; this.parentElement.nextElementSibling.style.display='flex';">
+          <div style="position:absolute; bottom:12px; left:16px; font-size:32px;" x-text="a.emoji"></div>
+        </div>
+      </template>
+      <template x-if="!a.photo">
+        <div class="detail-hero" :style="heroBg(a.zone)">
+          <span x-text="a.emoji"></span>
+        </div>
+      </template>
       <div style="font-size:20px; font-weight:800;" x-text="a.nameKo || a.name"></div>
       <div style="color:var(--text-light); font-size:13px;" x-text="a.name"></div>
       <div style="margin:8px 0;">
@@ -494,6 +508,8 @@
       </div>
 
       <button class="btn btn-outline btn-block" style="margin-top:14px;" @click="openEtiquette(a)">🎩 영국 매너 가이드 보기</button>
+
+      <button class="btn btn-outline btn-block" style="margin-top:10px;" @click="openInfo(a)">🔎 웹에서 사진·정보 보기</button>
 
       <!-- Google Maps 임베드 (좌표는 a.coordinates.lat/lng) -->
       <template x-if="a.coordinates && a.coordinates.lat && a.coordinates.lng">
@@ -697,6 +713,68 @@
            style="color:var(--primary); font-size:12px; font-weight:600; text-decoration:none;">
           🗺️ 전체 튜브맵 보기 →
         </a>
+      </div>
+
+      <!-- ===== 가족 협상 도우미 ===== -->
+      <div class="section-title">🤝 가족 협상 도우미</div>
+      <div class="card" style="padding:16px;">
+        <div style="font-size:12px; color:var(--text-light); margin-bottom:12px; line-height:1.5;">
+          각자 원하는 것을 입력하면 Butler가 모두가 만족할 절충안을 제안해요.
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;">
+          <div style="display:flex; gap:10px; align-items:flex-start;">
+            <span style="font-size:18px; margin-top:2px;">👨</span>
+            <div style="flex:1;">
+              <div style="font-size:11px; color:var(--text-light); font-weight:700; margin-bottom:4px;">아빠 (에드워드)</div>
+              <textarea
+                x-model="negotiate.inputs.dad"
+                placeholder="예: 역사적인 곳 + 걷기 싫어요"
+                style="width:100%; min-height:52px; resize:none; padding:8px 10px; border:1.5px solid var(--border); border-radius:10px; font-size:13px; background:var(--bg-section); color:var(--text-primary); box-sizing:border-box; font-family:inherit; line-height:1.5;">
+              </textarea>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start;">
+            <span style="font-size:18px; margin-top:2px;">👩</span>
+            <div style="flex:1;">
+              <div style="font-size:11px; color:var(--text-light); font-weight:700; margin-bottom:4px;">엄마 (유효정)</div>
+              <textarea
+                x-model="negotiate.inputs.mom"
+                placeholder="예: 예쁜 카페 + 쇼핑 조금"
+                style="width:100%; min-height:52px; resize:none; padding:8px 10px; border:1.5px solid var(--border); border-radius:10px; font-size:13px; background:var(--bg-section); color:var(--text-primary); box-sizing:border-box; font-family:inherit; line-height:1.5;">
+              </textarea>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start;">
+            <span style="font-size:18px; margin-top:2px;">🧒</span>
+            <div style="flex:1;">
+              <div style="font-size:11px; color:var(--text-light); font-weight:700; margin-bottom:4px;">자녀 (12세)</div>
+              <textarea
+                x-model="negotiate.inputs.kid"
+                placeholder="예: 레고 스토어 + 뭔가 재미있는 거"
+                style="width:100%; min-height:52px; resize:none; padding:8px 10px; border:1.5px solid var(--border); border-radius:10px; font-size:13px; background:var(--bg-section); color:var(--text-primary); box-sizing:border-box; font-family:inherit; line-height:1.5;">
+              </textarea>
+            </div>
+          </div>
+        </div>
+        <button
+          class="btn btn-primary btn-block"
+          :disabled="negotiate.loading"
+          @click="negotiateFamily()">
+          <span x-show="!negotiate.loading">🤝 절충안 제안받기</span>
+          <span x-show="negotiate.loading">🎩 Butler 협상 중…</span>
+        </button>
+        <template x-if="negotiate.result">
+          <div style="margin-top:16px; padding:14px; background:var(--bg-section); border-radius:12px; border-left:3px solid var(--primary);">
+            <div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:8px;">🎩 Butler 절충안</div>
+            <div style="font-size:13px; line-height:1.8; color:var(--text-primary); white-space:pre-wrap;" x-text="negotiate.result"></div>
+            <button
+              class="btn btn-sm btn-outline"
+              style="margin-top:10px; font-size:11px; padding:4px 10px;"
+              @click="negotiate.result = null; negotiate.inputs = { dad: '', mom: '', kid: '' }">
+              🔄 다시 입력
+            </button>
+          </div>
+        </template>
       </div>
 
       <!-- ===== 여행일기 ===== -->

@@ -56,6 +56,13 @@ function tripApp() {
       currentDay: null
     },
 
+    // 가족 협상 도우미
+    negotiate: {
+      inputs: { dad: '', mom: '', kid: '' },
+      loading: false,
+      result: null
+    },
+
     // 명소 카드 Butler 인사이트
     cardInsight: null,
     cardInsightLoading: false,
@@ -359,6 +366,11 @@ function tripApp() {
       if (!a.coordinates) return;
       const { lat, lng } = a.coordinates;
       window.open('https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng, '_blank');
+    },
+    // 웹에서 사진·정보 보기 (장소명 검색 → 홈페이지/사진 확인)
+    openInfo(a) {
+      const q = encodeURIComponent(((a.name || a.nameKo) + ' London').trim());
+      window.open('https://www.google.com/search?q=' + q, '_blank');
     },
     openEtiquette(a) {
       // 카테고리 자동 매핑: type → etiquette.json 카테고리
@@ -792,6 +804,45 @@ ${existing ? '\n※ 기존 일기가 있음. 다른 시각·에피소드로 새�
       if (this.store.diary) {
         delete this.store.diary[n];
         TripStorage.write(this.store);
+      }
+    },
+
+    // ---- 가족 협상 도우미 ----
+    async negotiateFamily() {
+      const { dad, mom, kid } = this.negotiate.inputs;
+      if (!dad.trim() && !mom.trim() && !kid.trim()) {
+        alert('세 가족의 희망을 입력해주세요.');
+        return;
+      }
+      if (this.negotiate.loading) return;
+      this.negotiate.loading = true;
+      this.negotiate.result = null;
+      const query = `황씨 가족 런던 여행 중 세 사람의 의견이 다릅니다. 모두가 최대한 만족할 수 있는 오늘 일정 절충안 2~3가지를 제안해주세요.
+아빠(에드워드, 분석적·효율 중시): ${dad.trim() || '특별한 의견 없음'}
+엄마(유효정, 편안함·분위기 중시): ${mom.trim() || '특별한 의견 없음'}
+자녀(12세, 활동적·체험 중시): ${kid.trim() || '특별한 의견 없음'}
+조건:
+- 각 절충안은 세 사람 모두의 니즈를 어떻게 반영했는지 한 줄로 설명
+- 런던 실제 장소·식당 이름 포함
+- 친근하고 실용적인 어조, 200자 이내
+- 이모지 활용`;
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query,
+            context: { family: { dad: '에드워드', mom: '유효정', kid: '12세' } },
+            taskType: 'general',
+            useWebSearch: false
+          })
+        });
+        const data = await res.json();
+        this.negotiate.result = data.answer || data.intro || '결과를 불러올 수 없어요.';
+      } catch (e) {
+        this.negotiate.result = '연결 오류. 다시 시도해주세요.';
+      } finally {
+        this.negotiate.loading = false;
       }
     },
 
