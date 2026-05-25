@@ -103,7 +103,8 @@ export default async (req) => {
 }
 
 절대 마크다운 코드블록(\`\`\`json)으로 감싸지 마세요. JSON 객체만 반환하세요.
-활동이 없거나 정보가 부족해도 반드시 위 JSON 형식을 유지하세요.`;
+활동이 없거나 정보가 부족해도 반드시 위 JSON 형식을 유지하세요.
+출력은 최대한 간결하게: 활동(timeline)은 최대 8개, tip은 30자 이내, advice는 2문장 이내. 불필요한 공백·줄바꿈 없이 압축된 JSON으로 응답하세요.`;
 
   // 일반 시스템 프롬프트
   const systemPrompt = `당신은 황씨 가족의 런던 여행 집사 (Travel Butler) 입니다. 이름은 "버틀러"예요.
@@ -173,7 +174,7 @@ ${JSON.stringify(context, null, 2)}
       },
       body: JSON.stringify({
         model: selectModel(),
-        max_tokens: taskType === 'route_optimization' ? 1500 : 2000,
+        max_tokens: taskType === 'route_optimization' ? 2500 : 2000,
         system: taskType === 'route_optimization' ? routeSystemPrompt : systemPrompt,
         tools: tools.length ? tools : undefined,
         messages: [{ role: 'user', content: query }]
@@ -197,26 +198,12 @@ ${JSON.stringify(context, null, 2)}
       if (block.type === 'text') rawText += block.text;
     }
 
-    // JSON 파싱 시도
+    // JSON 파싱 (코드펜스/프로즈/후행콤마/절단 모두 견디는 강건 파서)
     let parsed;
     try {
-      // 마크다운 코드블록 제거
-      let cleanText = rawText
-        .replace(/^```json\s*/m, '')
-        .replace(/^```\s*/m, '')
-        .replace(/```\s*$/m, '')
-        .trim();
-
-      // JSON 객체 추출 (가장 바깥 {} 매칭)
-      const start = cleanText.indexOf('{');
-      const end = cleanText.lastIndexOf('}');
-      if (start !== -1 && end !== -1 && end > start) {
-        cleanText = cleanText.slice(start, end + 1);
-      }
-
-      parsed = JSON.parse(cleanText);
+      parsed = parseAiJson(rawText);
     } catch (parseErr) {
-      console.error('JSON parse failed. rawText:', rawText.slice(0, 500));
+      console.error('JSON parse failed. rawText:', rawText.slice(0, 800));
       // route_optimization 실패 시 명확한 에러 타입 반환
       if (taskType === 'route_optimization') {
         parsed = { type: 'error', error: '동선 응답 파싱 오류. 다시 시도해 주세요.' };
@@ -240,5 +227,59 @@ ${JSON.stringify(context, null, 2)}
     });
   }
 };
+
+// ─── 강건한 JSON 파서 (모델 응답용) ───
+// 코드펜스 제거 → 첫 '{'부터 절단 → (a)마지막 '}'까지 (b)전체 순으로
+// 후행 콤마 제거 + 절단(truncation) 복구를 모두 시도.
+export function parseAiJson(rawText) {
+  let t = (rawText || '').trim();
+  // 1) 마크다운 코드펜스 제거 (위치 무관)
+  t = t.replace(/```json/gi, '').replace(/```/g, '').trim();
+  // 2) 첫 '{' 이전의 프로즈 제거
+  const start = t.indexOf('{');
+  if (start === -1) throw new Error('JSON 객체를 찾을 수 없음');
+  t = t.slice(start);
+
+  const candidates = [];
+  const lastClose = t.lastIndexOf('}');
+  if (lastClose !== -1) candidates.push(t.slice(0, lastClose + 1)); // 후행 프로즈 제거본
+  candidates.push(t); // 절단 복구용 전체
+
+  for (const cand of candidates) {
+    // (a) 후행 콤마 제거 후 직접 파싱
+    const noTrailingComma = cand.replace(/,(\s*[}\]])/g, '$1');
+    try { return JSON.parse(noTrailingComma); } catch (_) { /* 계속 */ }
+    // (b) 절단 복구 후 파싱
+    try {
+      const repaired = repairTruncatedJson(cand).replace(/,(\s*[}\]])/g, '$1');
+      return JSON.parse(repaired);
+    } catch (_) { /* 계속 */ }
+  }
+  throw new Error('JSON 파싱 실패');
+}
+
+// 중간에 잘린 JSON을 닫아 유효하게 복구 (열린 문자열/배열/객체 정리)
+export function repairTruncatedJson(s) {
+  const stack = [];
+  let inStr = false, esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+    } else {
+      if (ch === '"') inStr = true;
+      else if (ch === '{') stack.push('}');
+      else if (ch === '[') stack.push(']');
+      else if (ch === '}' || ch === ']') stack.pop();
+    }
+  }
+  let out = s;
+  if (inStr) out += '"';                       // 열린 문자열 닫기
+  out = out.replace(/[:,]\s*$/, '');           // 끝의 콜론/콤마(미완성 키·값) 제거
+  while (stack.length) out += stack.pop();     // 열린 괄호 닫기
+  return out;
+}
 
 // 기본 경로: /.netlify/functions/butler
