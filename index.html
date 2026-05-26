@@ -59,13 +59,25 @@
         <div class="widget-card weather-card">
           <div class="widget-label">🇬🇧 런던 날씨</div>
           <template x-if="weather.loaded">
-            <div class="widget-body">
-              <span class="w-icon" x-text="weather.icon"></span>
-              <span class="w-temp" x-text="weather.tempC + '°C'"></span>
-              <span class="w-desc" x-text="weather.desc"></span>
-              <div class="w-meta">
-                <span x-text="'💧' + weather.humidity + '%'"></span>
-                <span x-text="'💨' + weather.wind + 'km/h'"></span>
+            <div>
+              <div class="widget-body">
+                <span class="w-icon" x-text="weather.icon"></span>
+                <span class="w-temp" x-text="weather.tempC + '°C'"></span>
+                <span class="w-desc" x-text="weather.desc"></span>
+                <div class="w-meta">
+                  <span x-text="'💧' + weather.humidity + '%'"></span>
+                  <span x-text="'💨' + weather.wind + 'km/h'"></span>
+                </div>
+              </div>
+              <div class="forecast-row" x-show="weather.forecast.length">
+                <template x-for="f in weather.forecast" :key="f.date">
+                  <div class="forecast-chip">
+                    <div class="fc-day" x-text="f.dayLabel"></div>
+                    <div class="fc-icon" x-text="f.icon"></div>
+                    <div class="fc-temp" x-text="f.maxC + '/' + f.minC + '°'"></div>
+                    <div class="fc-rain" x-text="f.rainPct + '%'" :style="f.rainPct >= 50 ? 'color:#3b82f6;font-weight:600' : ''"></div>
+                  </div>
+                </template>
               </div>
             </div>
           </template>
@@ -89,6 +101,26 @@
           </template>
         </div>
       </div>
+
+      <!-- ▸ 오늘의 추천 일정 (여행 기간 중만 표시) -->
+      <template x-if="dailyRec.loading || dailyRec.text">
+        <div class="daily-rec-card card">
+          <div class="daily-rec-header">
+            <span style="font-size:15px; font-weight:700;">🔮 버틀러의 오늘 추천</span>
+            <button class="btn-ghost-sm" @click="fetchDailyRec(true)" :disabled="dailyRec.loading">
+              🔄 새로고침
+            </button>
+          </div>
+          <template x-if="dailyRec.loading">
+            <div style="padding:10px 0; color:var(--text-light); font-size:13px;">
+              ✍️ 버틀러가 오늘 일정을 짜는 중…
+            </div>
+          </template>
+          <template x-if="!dailyRec.loading && dailyRec.text">
+            <div class="daily-rec-body" x-text="dailyRec.text"></div>
+          </template>
+        </div>
+      </template>
 
       <div class="section-title">🎩 Travel Butler</div>
       <button class="butler-btn-home btn-block" @click="butlerSheet = true">
@@ -652,16 +684,30 @@
       </template>
 
       <div class="section-title">🌤️ 런던 날씨</div>
-      <div class="card" style="display:flex; gap:12px; align-items:center;">
-        <span style="font-size:28px;" x-text="weather.loaded ? weather.icon : '⛅'"></span>
-        <template x-if="weather.loaded">
-          <div>
-            <div style="font-size:18px; font-weight:700;" x-text="weather.tempC + '°C · ' + weather.desc"></div>
-            <div style="font-size:12px; color:var(--text-secondary);" x-text="'💧' + weather.humidity + '% · 💨' + weather.wind + 'km/h'"></div>
+      <div class="card">
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:10px;">
+          <span style="font-size:28px;" x-text="weather.loaded ? weather.icon : '⛅'"></span>
+          <template x-if="weather.loaded">
+            <div>
+              <div style="font-size:18px; font-weight:700;" x-text="weather.tempC + '°C · ' + weather.desc"></div>
+              <div style="font-size:12px; color:var(--text-secondary);" x-text="'💧' + weather.humidity + '% · 💨' + weather.wind + 'km/h'"></div>
+            </div>
+          </template>
+          <template x-if="!weather.loaded">
+            <div style="font-size:12px; color:var(--text-secondary);">불러오는 중… 6월 런던은 변덕스러우니 우산 챙기세요.</div>
+          </template>
+        </div>
+        <template x-if="weather.loaded && weather.forecast.length">
+          <div class="forecast-row">
+            <template x-for="f in weather.forecast" :key="f.date">
+              <div class="forecast-chip">
+                <div class="fc-day" x-text="f.dayLabel"></div>
+                <div class="fc-icon" x-text="f.icon"></div>
+                <div class="fc-temp" x-text="f.maxC + '/' + f.minC + '°'"></div>
+                <div class="fc-rain" x-text="f.rainPct + '%'" :style="f.rainPct >= 50 ? 'color:#3b82f6;font-weight:600' : ''"></div>
+              </div>
+            </template>
           </div>
-        </template>
-        <template x-if="!weather.loaded">
-          <div style="font-size:12px; color:var(--text-secondary);">불러오는 중… 6월 런던은 변덕스러우니 우산 챙기세요.</div>
         </template>
       </div>
 

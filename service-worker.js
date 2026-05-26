@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1.1.4';
+const CACHE_VERSION = 'v1.1.6';
 const CACHE_NAME = `london-trip-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
@@ -64,19 +64,27 @@ self.addEventListener('fetch', (event) => {
   // CDN(타 출처) 리소스는 가로채지 않음
   if (url.origin !== self.location.origin) return;
 
-  // 앱 셸(HTML 문서): Network-first → 새 버전 즉시 반영, 오프라인 시 캐시
-  if (request.mode === 'navigate' || request.destination === 'document') {
+  // 앱 셸(HTML 문서 + 같은 출처 JS/CSS): Network-first
+  // → HTML과 app.js/styles.css 버전이 항상 일치(스큐 방지). 오프라인 시 캐시 폴백.
+  if (
+    request.mode === 'navigate' ||
+    request.destination === 'document' ||
+    request.destination === 'script' ||
+    request.destination === 'style'
+  ) {
     event.respondWith(
       fetch(request).then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        if (res && res.status === 200 && res.type === 'basic') {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
         return res;
-      }).catch(() => caches.match(request).then((r) => r || caches.match('/index.html')))
+      }).catch(() => caches.match(request).then((r) => r || (request.destination === 'document' ? caches.match('/index.html') : undefined)))
     );
     return;
   }
 
-  // 기타 정적 리소스(css/js/data/icons): Stale-while-revalidate
+  // 기타 정적 리소스(data/icons): Stale-while-revalidate
   // → 캐시를 즉시 주되 백그라운드에서 최신본으로 갱신 (오프라인 + 점진 업데이트)
   event.respondWith(
     caches.match(request).then((cached) => {

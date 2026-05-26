@@ -31,8 +31,11 @@ function tripApp() {
     clock: { london: '', seoul: '' },
 
     // 날씨 + 환율 위젯
-    weather: { loaded: false, tempC: '', desc: '', humidity: '', wind: '', icon: '' },
+    weather: { loaded: false, tempC: '', desc: '', humidity: '', wind: '', icon: '', forecast: [] },
     currency: { loaded: false, rate: 0, date: '' },
+
+    // 오늘의 추천 일정 (날씨 기반 Butler)
+    dailyRec: { loading: false, text: null, cachedDate: null },
 
     // 환율 계산기
     calc: { gbp: '' },
@@ -119,6 +122,8 @@ function tripApp() {
 
       // 날씨 + 환율 + TfL 로드 (병렬)
       this.fetchWeather();
+      // 날씨 로드 후 오늘의 추천 자동 생성 (여행 기간 중만, 하루 1회 캐시)
+      setTimeout(() => this.fetchDailyRec(), 1500);
       this.fetchCurrency();
       this.fetchTfl();
       setInterval(() => this.fetchWeather(), 30 * 60 * 1000);  // 30분마다
@@ -200,35 +205,127 @@ function tripApp() {
     // ---- 날씨 + 환율 ----
     async fetchWeather() {
       try {
-        const res = await fetch('https://wttr.in/London?format=j1', { cache: 'no-cache' });
+        const res = await fetch(
+          'https://api.open-meteo.com/v1/forecast' +
+          '?latitude=51.5074&longitude=-0.1278' +
+          '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code' +
+          '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+          '&timezone=Europe%2FLondon&forecast_days=7',
+          { cache: 'no-cache' }
+        );
         const d = await res.json();
-        const c = d.current_condition[0];
-        const descs = { 'Sunny': '맑음', 'Clear': '맑음', 'Partly cloudy': '구름 조금', 'Cloudy': '흐림',
-          'Overcast': '흐림', 'Mist': '안개', 'Light rain': '가벼운 비', 'Moderate rain': '비',
-          'Heavy rain': '폭우', 'Light snow': '눈', 'Thundery outbreaks possible': '번개',
-          'Patchy rain possible': '비 올 수 있음', 'Blowing snow': '눈보라' };
-        const raw = c.weatherDesc[0].value;
+        const cur = d.current;
+        const days = d.daily;
+        const dayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+        const forecast = days.time.map((dateStr, i) => {
+          const dt = new Date(dateStr + 'T12:00:00');
+          return {
+            date: dateStr,
+            dayLabel: i === 0 ? '오늘' : dayLabels[dt.getDay()],
+            icon: this._weatherIconWmo(days.weather_code[i]),
+            maxC: Math.round(days.temperature_2m_max[i]),
+            minC: Math.round(days.temperature_2m_min[i]),
+            rainPct: days.precipitation_probability_max[i] ?? 0
+          };
+        });
         this.weather = {
           loaded: true,
-          tempC: c.temp_C,
-          desc: descs[raw] || raw,
-          humidity: c.humidity,
-          wind: c.windspeedKmph,
-          icon: this._weatherIcon(c.weatherCode)
+          tempC: Math.round(cur.temperature_2m),
+          desc: this._wmoDesc(cur.weather_code),
+          humidity: cur.relative_humidity_2m,
+          wind: Math.round(cur.wind_speed_10m),
+          icon: this._weatherIconWmo(cur.weather_code),
+          forecast
         };
       } catch { /* 오프라인 시 무시 */ }
     },
 
-    _weatherIcon(code) {
-      const n = +code;
-      if (n === 113) return '☀️';
-      if (n === 116) return '⛅';
-      if ([119, 122].includes(n)) return '☁️';
-      if ([143, 248, 260].includes(n)) return '🌫️';
-      if ([176, 293, 296, 299, 302, 305, 308].includes(n)) return '🌧️';
-      if ([200, 386, 389, 392, 395].includes(n)) return '⛈️';
-      if ([179, 182, 185, 281, 284, 311, 314, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377].includes(n)) return '❄️';
+    _weatherIconWmo(code) {
+      const c = +code;
+      if (c === 0) return '☀️';
+      if (c <= 2) return '🌤️';
+      if (c === 3) return '☁️';
+      if ([45, 48].includes(c)) return '🌫️';
+      if ([51, 53, 55, 56, 57].includes(c)) return '🌦️';
+      if ([61, 63, 65, 66, 67].includes(c)) return '🌧️';
+      if ([71, 73, 75, 77].includes(c)) return '❄️';
+      if ([80, 81, 82].includes(c)) return '🌧️';
+      if ([85, 86].includes(c)) return '🌨️';
+      if ([95, 96, 99].includes(c)) return '⛈️';
       return '🌡️';
+    },
+    _wmoDesc(code) {
+      const c = +code;
+      if (c === 0) return '맑음';
+      if (c === 1) return '대체로 맑음';
+      if (c === 2) return '구름 조금';
+      if (c === 3) return '흐림';
+      if ([45, 48].includes(c)) return '안개';
+      if ([51, 53].includes(c)) return '이슬비';
+      if (c === 55) return '강한 이슬비';
+      if ([61, 63].includes(c)) return '비';
+      if (c === 65) return '강한 비';
+      if ([71, 73, 75].includes(c)) return '눈';
+      if ([80, 81, 82].includes(c)) return '소나기';
+      if ([95, 96, 99].includes(c)) return '번개';
+      return '날씨 정보';
+    },
+
+    // ---- 오늘의 추천 일정 (날씨 기반 Butler) ----
+    async fetchDailyRec(force = false) {
+      const today = new Date().toISOString().slice(0, 10);
+      const tripStart = '2026-06-15';
+      const tripEnd = '2026-06-22';
+      if (today < tripStart || today > tripEnd) return;  // 여행 기간 외에는 실행 안 함
+
+      const cacheKey = `dailyRec_${today}`;
+      if (!force) {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          this.dailyRec = { loading: false, text: cached, cachedDate: today };
+          return;
+        }
+      }
+
+      const dayNum = Math.floor((new Date(today) - new Date(tripStart)) / 86400000) + 1;
+      const dayData = this.days.find(d => d.day === dayNum);
+      if (!dayData) return;
+
+      // 현재 사용자 일정 (store.days[n].activities → 활동명)
+      const userPlan = this.dayActivities(dayNum).map(a => a.nameKo || a.name);
+
+      const weatherDesc = this.weather.loaded
+        ? `${this.weather.tempC}°C, ${this.weather.desc}, 습도 ${this.weather.humidity}%`
+        : '날씨 정보 없음';
+      const todayForecast = this.weather.forecast && this.weather.forecast[0];
+      const rainRisk = todayForecast ? `강수확률 ${todayForecast.rainPct}%` : '';
+
+      this.dailyRec = { ...this.dailyRec, loading: true, text: null };
+
+      const prompt = `런던 여행 ${dayNum}일째 오늘의 추천 일정을 만들어줘.
+오늘 날씨: ${weatherDesc} ${rainRisk}
+오늘 지역: ${dayData.baseZone ? 'Zone ' + dayData.baseZone : '런던'} (${dayData.concept || ''})
+이미 계획된 일정: ${userPlan.length ? userPlan.join(', ') : '없음'}
+가족 구성: 부부 + 자녀(만 12세)
+날씨 고려: 비/흐림이면 실내 중심, 맑으면 야외 포함
+다음 형식으로 짧게 답변해:
+🌤️ 오늘 날씨 한 줄 코멘트
+📍 추천 동선 (3~4곳, 실내/야외 구분)
+💡 오늘의 꿀팁 한 가지`;
+
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: prompt, context: { day: dayNum, zone: dayData.baseZone }, taskType: 'general', useWebSearch: false })
+        });
+        const data = await res.json();
+        const text = data.answer || data.intro || '추천을 불러오지 못했습니다.';
+        localStorage.setItem(cacheKey, text);
+        this.dailyRec = { loading: false, text, cachedDate: today };
+      } catch {
+        this.dailyRec = { loading: false, text: null, cachedDate: null };
+      }
     },
 
     async fetchCurrency() {
