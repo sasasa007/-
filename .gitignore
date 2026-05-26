@@ -4,4 +4,3 @@ api key.txt
 .env
 .env.local
 node_modules/
-js/firebase-config.js
