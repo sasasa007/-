@@ -1005,3 +1005,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   cursor: pointer;
 }
 .btn-ghost-sm:disabled { opacity: 0.5; }
+
+/* ── Firebase 동기화 상태 표시 ── */
+.sync-indicator {
+  font-size: 14px;
+  opacity: 0.75;
+  cursor: default;
+  user-select: none;
+  margin: 0 4px;
+  flex: none;
+}
+.sync-indicator.syncing { animation: syncPulse 1s infinite; }
+@keyframes syncPulse { 0%, 100% { opacity: 0.75; } 50% { opacity: 0.3; } }

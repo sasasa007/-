@@ -33,5 +33,5 @@ window.TripStorage = (function () {
     }
   }
 
-  return { read, write };
+  return { read, write, KEY };
 })();

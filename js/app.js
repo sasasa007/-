@@ -32,6 +32,13 @@ function tripApp() {
 
     // 날씨 + 환율 위젯
     weather: { loaded: false, tempC: '', desc: '', humidity: '', wind: '', icon: '', forecast: [] },
+
+    // Firebase 실시간 동기화
+    sync: { enabled: false, status: 'idle', lastSync: null },  // status: idle|syncing|synced|offline
+    _syncTimer: null,
+    _isSyncing: false,       // 자체 write로 인한 listener 재진입 방지
+    _deviceId: null,
+    _lastPushed: {},         // 필드별 마지막 푸시 스냅샷(JSON) — 변경된 필드만 전송
     currency: { loaded: false, rate: 0, date: '' },
 
     // 오늘의 추천 일정 (날씨 기반 Butler)
@@ -130,6 +137,9 @@ function tripApp() {
       setInterval(() => this.fetchCurrency(), 60 * 60 * 1000); // 1시간마다
       setInterval(() => this.fetchTfl(), 5 * 60 * 1000);       // 5분마다
 
+      // Firebase 실시간 동기화 초기화
+      this.initFirebase();
+
       // 라우팅
       window.addEventListener('hashchange', () => this.syncFromHash());
       this.syncFromHash();
@@ -203,6 +213,94 @@ function tripApp() {
     },
 
     // ---- 날씨 + 환율 ----
+    // ---- Firebase 실시간 동기화 ----
+    initFirebase() {
+      try {
+        if (typeof window.FIREBASE_CONFIG === 'undefined' || typeof firebase === 'undefined') {
+          console.warn('Firebase config/SDK 없음 — 동기화 비활성 (로컬 기능은 정상)');
+          return;
+        }
+        // 기기 고유 ID 생성/복원
+        this._deviceId = localStorage.getItem('_deviceId');
+        if (!this._deviceId) {
+          this._deviceId = 'dev_' + Math.random().toString(36).slice(2, 9);
+          localStorage.setItem('_deviceId', this._deviceId);
+        }
+        if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+        const ref = firebase.database().ref('hwang-london-2026/shared');
+
+        // ① 최초 1회: 원격 우선 로드 → 이후 실시간 구독
+        ref.once('value', (snapshot) => {
+          const remote = snapshot.val();
+          if (remote) this._mergeFromFirebase(remote);
+          // 초기 스냅샷을 _lastPushed에 기록(방금 받은 데이터 되쏘기 방지)
+          ['days', 'expenses', 'diary', 'checklist'].forEach(f => {
+            this._lastPushed[f] = JSON.stringify(this.store[f] ?? null);
+          });
+          ref.on('value', (snap) => {
+            if (this._isSyncing) return;     // 자체 write 무시
+            const data = snap.val();
+            if (data) this._mergeFromFirebase(data);
+          });
+        });
+
+        this.sync.enabled = true;
+        this.sync.status = navigator.onLine ? 'synced' : 'offline';
+        window.addEventListener('online', () => { this.sync.status = 'synced'; });
+        window.addEventListener('offline', () => { this.sync.status = 'offline'; });
+      } catch (e) {
+        console.error('Firebase 초기화 실패', e);
+      }
+    },
+
+    // Firebase → 로컬 병합 (필드별, 다른 필드만 교체)
+    _mergeFromFirebase(remote) {
+      let changed = false;
+      ['days', 'expenses', 'diary', 'checklist'].forEach(f => {
+        if (remote[f] === undefined) return;
+        const remoteStr = JSON.stringify(remote[f]);
+        if (remoteStr !== JSON.stringify(this.store[f] ?? null)) {
+          this.store[f] = remote[f];
+          this._lastPushed[f] = remoteStr;  // 받은 값은 푸시 대상에서 제외
+          changed = true;
+        }
+      });
+      if (changed) {
+        TripStorage.write(this.store);   // ⚠️ 여기서는 _writeStore 쓰지 않음 (되쏘기/무한루프 방지)
+        this.sync.lastSync = new Date();
+      }
+    },
+
+    // 로컬 → Firebase (디바운스 800ms, 변경된 필드만 update)
+    _pushToFirebase() {
+      if (!this.sync.enabled) return;
+      clearTimeout(this._syncTimer);
+      this.sync.status = 'syncing';
+      this._syncTimer = setTimeout(() => {
+        const updates = {};
+        ['days', 'expenses', 'diary', 'checklist'].forEach(f => {
+          const cur = JSON.stringify(this.store[f] ?? null);
+          if (cur !== this._lastPushed[f]) {
+            updates[f] = this.store[f] ?? null;
+            this._lastPushed[f] = cur;
+          }
+        });
+        if (!Object.keys(updates).length) { this.sync.status = 'synced'; return; }
+        updates._meta = { updatedAt: Date.now(), deviceId: this._deviceId };
+        this._isSyncing = true;
+        firebase.database().ref('hwang-london-2026/shared').update(updates)
+          .then(() => { this.sync.status = 'synced'; this.sync.lastSync = new Date(); })
+          .catch(() => { this.sync.status = 'offline'; })
+          .finally(() => { setTimeout(() => { this._isSyncing = false; }, 600); });
+      }, 800);
+    },
+
+    // 로컬 저장 + Firebase 동기화 래퍼
+    _writeStore() {
+      TripStorage.write(this.store);
+      this._pushToFirebase();
+    },
+
     async fetchWeather() {
       try {
         const res = await fetch(
@@ -432,7 +530,7 @@ function tripApp() {
       const arr = this.store.days[n].activities;
       const i = arr.indexOf(id);
       if (i >= 0) arr.splice(i, 1); else arr.push(id);
-      TripStorage.write(this.store);
+      this._writeStore();
     },
 
     // Zone별 활동 (타입 필터 적용)
@@ -492,7 +590,7 @@ function tripApp() {
     isChecked(id) { return !!this.store.checklist[id]; },
     toggleCheck(id) {
       this.store.checklist[id] = !this.store.checklist[id];
-      TripStorage.write(this.store);
+      this._writeStore();
     },
     checkProgress() {
       const all = this.checklist.flatMap(c => c.items.map(i => i.id));
@@ -512,7 +610,7 @@ function tripApp() {
     toggleDark() {
       this.darkMode = !this.darkMode;
       this.store.settings.darkMode = this.darkMode;
-      TripStorage.write(this.store);
+      this._writeStore();
       this.applyTheme();
     },
     applyTheme() {
@@ -644,7 +742,7 @@ function tripApp() {
     setBudget(val) {
       if (!this.store.expenses) this.store.expenses = { budget: 0, items: [] };
       this.store.expenses.budget = parseFloat(val) || 0;
-      TripStorage.write(this.store);
+      this._writeStore();
       this.budget.editBudget = false;
     },
     addExpense() {
@@ -660,14 +758,14 @@ function tripApp() {
         createdAt: new Date().toISOString()
       };
       this.store.expenses.items.push(item);
-      TripStorage.write(this.store);
+      this._writeStore();
       this.budget.newItem = { category: 'food', amount: '', memo: '' };
       this.budget.showForm = false;
     },
     deleteExpense(id) {
       if (!this.store.expenses) return;
       this.store.expenses.items = this.store.expenses.items.filter(i => i.id !== id);
-      TripStorage.write(this.store);
+      this._writeStore();
     },
     expenseCategoryLabel(cat) {
       const map = { food: '🍽️ 식비', transport: '🚇 교통', attraction: '🏛️ 관광', shopping: '🛍️ 쇼핑', hotel: '🏨 호텔', other: '📦 기타' };
@@ -771,7 +869,7 @@ ${selected.map(a => `- ${a.nameKo || a.name} [${a.type}] Zone:${a.zone} 소요:$
       if (!this.store.days[toDay].activities.includes(id)) {
         this.store.days[toDay].activities.push(id);
       }
-      TripStorage.write(this.store);
+      this._writeStore();
       if (this.routeDayNum === fromDay) this.routeResult = null;
     },
 
@@ -790,7 +888,7 @@ ${selected.map(a => `- ${a.nameKo || a.name} [${a.type}] Zone:${a.zone} 소요:$
       if (!this.store.days[n]) this.store.days[n] = { activities: [] };
       if (!this.store.days[n].activities.includes(id)) {
         this.store.days[n].activities.push(id);
-        TripStorage.write(this.store);
+        this._writeStore();
       }
     },
     // 추천 전체 추가
@@ -803,7 +901,7 @@ ${selected.map(a => `- ${a.nameKo || a.name} [${a.type}] Zone:${a.zone} 소요:$
           this.store.days[n].activities.push(a.id);
         }
       });
-      TripStorage.write(this.store);
+      this._writeStore();
     },
 
     async loadCardInsight(a) {
@@ -887,7 +985,7 @@ ${existing ? '\n※ 기존 일기가 있음. 다른 시각·에피소드로 새�
         if (text) {
           if (!this.store.diary) this.store.diary = {};
           this.store.diary[n] = { text, createdAt: new Date().toISOString() };
-          TripStorage.write(this.store);
+          this._writeStore();
         }
       } catch (e) {
         alert('일기 생성 오류. 다시 시도해주세요.');
@@ -900,7 +998,7 @@ ${existing ? '\n※ 기존 일기가 있음. 다른 시각·에피소드로 새�
       if (!confirm(`Day ${n} 일기를 삭제할까요?`)) return;
       if (this.store.diary) {
         delete this.store.diary[n];
-        TripStorage.write(this.store);
+        this._writeStore();
       }
     },
 
