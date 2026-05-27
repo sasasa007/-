@@ -97,6 +97,27 @@
         </div>
       </div>
 
+      <!-- ▸ F32: 남은 일정 최적화 (진행률 바로 아래) -->
+      <div class="card" style="padding:14px 16px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div>
+            <div style="font-size:14px; font-weight:700;">🗺️ 남은 일정 최적화</div>
+            <div style="font-size:11px; color:var(--text-light); margin-top:2px;">남은 여행을 Butler가 종합 분석해요</div>
+          </div>
+          <button class="btn btn-primary" style="padding:6px 14px; font-size:12px; flex-shrink:0;"
+                  @click="fetchTripOptimize()"
+                  :disabled="tripOptimize.loading">
+            <span x-show="!tripOptimize.loading">🎩 분석</span>
+            <span x-show="tripOptimize.loading">분석 중…</span>
+          </button>
+        </div>
+        <template x-if="tripOptimize.result">
+          <div style="font-size:13px; line-height:1.7; white-space:pre-line; background:var(--bg-section); border-radius:10px; padding:12px; margin-top:6px;">
+            <span x-text="tripOptimize.result"></span>
+          </div>
+        </template>
+      </div>
+
       <!-- ▸ 날씨 + 환율 위젯 -->
       <div class="widget-row">
         <!-- 날씨 -->
@@ -133,23 +154,6 @@
           </template>
         </div>
       </div>
-
-      <!-- ▸ 7일 날씨 예보 (전체 폭) -->
-      <template x-if="weather.loaded && weather.forecast.length">
-        <div class="card" style="padding:12px 14px; margin-bottom:4px;">
-          <div style="font-size:12px; color:var(--text-light); font-weight:600; margin-bottom:6px;">🗓️ 이번 주 런던 날씨</div>
-          <div class="forecast-row">
-            <template x-for="f in weather.forecast" :key="f.date">
-              <div class="forecast-chip">
-                <div class="fc-day" x-text="f.dayLabel"></div>
-                <div class="fc-icon" x-text="f.icon"></div>
-                <div class="fc-temp" x-text="f.maxC + '/' + f.minC + '°'"></div>
-                <div class="fc-rain" x-text="f.rainPct + '%'" :style="f.rainPct >= 50 ? 'color:#3b82f6;font-weight:600' : ''"></div>
-              </div>
-            </template>
-          </div>
-        </div>
-      </template>
 
       <!-- ▸ 오늘의 추천 일정 (여행 기간 중만 표시) -->
       <template x-if="dailyRec.loading || dailyRec.text">
@@ -444,6 +448,39 @@
           💡 추천 일정을 모두 담았어요. Zone을 탐색해 더 추가해보세요.
         </div>
       </template>
+
+      <!-- F39: 위치 기반 주변 발견 (당일 화면) -->
+      <div class="section-title">📍 지금 내 주변</div>
+      <div class="card" style="padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div style="font-size:12px; color:var(--text-light);">현재 위치 1km 내 명소·식당·상점</div>
+          <button class="btn btn-primary" style="padding:6px 14px; font-size:12px; flex-shrink:0;"
+                  @click="fetchNearby()"
+                  :disabled="nearby.loading">
+            <span x-show="!nearby.loading">📡 내 주변</span>
+            <span x-show="nearby.loading">탐색 중…</span>
+          </button>
+        </div>
+        <template x-if="nearby.error">
+          <div style="font-size:12px; color:var(--text-secondary); text-align:center; padding:10px 0;" x-text="nearby.error"></div>
+        </template>
+        <template x-if="nearby.items.length > 0">
+          <div>
+            <template x-for="item in nearby.items" :key="item.id">
+              <div @click="goCard(item.id)"
+                   style="display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); cursor:pointer;">
+                <span style="font-size:22px;" x-text="item.emoji || '📌'"></span>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" x-text="item.nameKo || item.name"></div>
+                  <div style="font-size:11px; color:var(--text-light);" x-text="item.nearestTube ? '🚇 ' + item.nearestTube : ''"></div>
+                </div>
+                <div style="font-size:12px; font-weight:700; color:var(--primary); white-space:nowrap;"
+                     x-text="item.distKm < 0.1 ? (item.distKm * 1000).toFixed(0) + 'm' : item.distKm.toFixed(2) + 'km'"></div>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
 
       <!-- Zone 선택 -->
       <div class="section-title">🗺️ 어디부터 둘러볼까요?</div>
@@ -1100,57 +1137,6 @@
         </div>
       </template>
 
-      <!-- F39: 위치 기반 주변 발견 -->
-      <div class="section-title">📍 주변 발견</div>
-      <div class="card" style="padding:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <div style="font-size:12px; color:var(--text-light);">현재 위치 기준 1km 내 등록된 명소·식당·상점</div>
-          <button class="btn btn-primary" style="padding:6px 14px; font-size:12px; flex-shrink:0;"
-                  @click="fetchNearby()"
-                  :disabled="nearby.loading">
-            <span x-show="!nearby.loading">📡 내 주변</span>
-            <span x-show="nearby.loading">탐색 중…</span>
-          </button>
-        </div>
-        <template x-if="nearby.error">
-          <div style="font-size:12px; color:var(--text-secondary); text-align:center; padding:10px 0;" x-text="nearby.error"></div>
-        </template>
-        <template x-if="nearby.items.length > 0">
-          <div>
-            <template x-for="item in nearby.items" :key="item.id">
-              <div @click="goCard(item.id)"
-                   style="display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); cursor:pointer;">
-                <span style="font-size:22px;" x-text="item.emoji || '📌'"></span>
-                <div style="flex:1; min-width:0;">
-                  <div style="font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" x-text="item.nameKo || item.name"></div>
-                  <div style="font-size:11px; color:var(--text-light);" x-text="item.nearestTube ? '🚇 ' + item.nearestTube : ''"></div>
-                </div>
-                <div style="font-size:12px; font-weight:700; color:var(--primary); white-space:nowrap;"
-                     x-text="item.distKm < 0.1 ? (item.distKm * 1000).toFixed(0) + 'm' : item.distKm.toFixed(2) + 'km'"></div>
-              </div>
-            </template>
-          </div>
-        </template>
-      </div>
-
-      <!-- F32: 남은 일정 최적화 -->
-      <div class="section-title">🗺️ 남은 일정 최적화</div>
-      <div class="card" style="padding:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div style="font-size:12px; color:var(--text-light);">남은 여행 일정을 Butler가 종합 분석해요</div>
-          <button class="btn btn-primary" style="padding:6px 14px; font-size:12px; flex-shrink:0;"
-                  @click="fetchTripOptimize()"
-                  :disabled="tripOptimize.loading">
-            <span x-show="!tripOptimize.loading">🎩 분석</span>
-            <span x-show="tripOptimize.loading">분석 중…</span>
-          </button>
-        </div>
-        <template x-if="tripOptimize.result">
-          <div style="font-size:13px; line-height:1.7; white-space:pre-line; background:var(--bg-section); border-radius:10px; padding:12px; margin-top:6px;">
-            <span x-text="tripOptimize.result"></span>
-          </div>
-        </template>
-      </div>
     </section>
 
     <!-- ============ 응급 ============ -->
