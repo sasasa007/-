@@ -42,6 +42,7 @@ export default async (req) => {
   // 모델 선택 (PRD §3.3)
   function selectModel() {
     if (taskType === 'route_optimization') return 'claude-sonnet-4-6';
+    if (taskType === 'trip_advice') return 'claude-sonnet-4-6';  // 일반 프롬프트(answer 반환)지만 품질 위해 Sonnet
     if (useWebSearch) return 'claude-sonnet-4-6';
     return 'claude-haiku-4-5';
   }

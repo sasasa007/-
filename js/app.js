@@ -550,7 +550,7 @@ function tripApp() {
           body: JSON.stringify({
             query: prompt,
             context: { dayNum, daysLeft },
-            taskType: 'route_optimization',
+            taskType: 'trip_advice',   // 일반 프롬프트로 answer(전문 조언) 받기 + Sonnet 품질
             useWebSearch: false
           })
         });

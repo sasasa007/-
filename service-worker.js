@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1.1.13';
+const CACHE_VERSION = 'v1.1.14';
 const CACHE_NAME = `london-trip-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
@@ -9,6 +9,7 @@ const STATIC_ASSETS = [
   '/js/app.js',
   '/js/storage.js',
   '/js/tube-stations.js',
+  '/js/firebase-config.js',
   '/js/pwa.js',
   '/data/days.json',
   '/data/zones.json',
