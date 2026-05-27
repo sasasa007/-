@@ -67,14 +67,34 @@
         <div class="dday-sub" x-text="cd.sub"></div>
       </div>
 
-      <!-- ▸ 골든벨 진입 카드 -->
-      <div class="golden-bell-entry card" @click="go('/game')">
-        <span style="font-size:28px;">🎮</span>
-        <div>
-          <div style="font-size:15px; font-weight:700;">오늘의 골든벨</div>
-          <div style="font-size:12px; color:var(--text-secondary);">오늘 방문한 곳으로 가족 퀴즈!</div>
+      <!-- ▸ 여행 진행률 요약 카드 (탭 → 전체 대시보드) -->
+      <div class="card" @click="go('/progress')" style="cursor:pointer; padding:14px 16px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-size:14px; font-weight:700;">📊 여행 진행률</span>
+          <span style="font-size:12px; color:var(--text-light);" x-text="tripDayProgress().current + '/8일차'"></span>
         </div>
-        <span style="margin-left:auto; font-size:18px; color:var(--primary);">→</span>
+        <div style="height:8px; background:var(--bg-section); border-radius:4px; overflow:hidden; margin-bottom:6px;">
+          <div style="height:100%; background:var(--primary); border-radius:4px; transition:width 0.4s;"
+               :style="'width:' + tripDayProgress().pct + '%'"></div>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:8px;">
+          <div style="flex:1; text-align:center;">
+            <div style="font-size:18px; font-weight:800; color:var(--primary);" x-text="checkProgress() + '%'"></div>
+            <div style="font-size:10px; color:var(--text-light);">체크리스트</div>
+          </div>
+          <div style="flex:1; text-align:center;">
+            <div style="font-size:18px; font-weight:800; color:var(--primary);" x-text="visitStats().visited"></div>
+            <div style="font-size:10px; color:var(--text-light);">방문 명소</div>
+          </div>
+          <div style="flex:1; text-align:center;">
+            <div style="font-size:18px; font-weight:800; color:var(--primary);" x-text="diaryStats().written + '/' + diaryStats().total"></div>
+            <div style="font-size:10px; color:var(--text-light);">일기 작성</div>
+          </div>
+          <div style="flex:1; text-align:center;">
+            <div style="font-size:18px; font-weight:800; color:var(--primary);" x-text="budgetStats().pct + '%'"></div>
+            <div style="font-size:10px; color:var(--text-light);">예산 사용</div>
+          </div>
+        </div>
       </div>
 
       <!-- ▸ 날씨 + 환율 위젯 -->
@@ -568,7 +588,21 @@
         </template>
       </div>
 
-      <button class="btn btn-outline btn-block" style="margin-top:14px;" @click="openEtiquette(a)">🎩 영국 매너 가이드 보기</button>
+      <!-- F25: 혼잡도 예측 -->
+      <button class="btn btn-outline btn-block" style="margin-top:14px;"
+              @click="fetchCrowdInfo(a.nameKo || a.name)"
+              :disabled="crowd.loading && crowd.place === (a.nameKo || a.name)">
+        <span x-show="!(crowd.loading && crowd.place === (a.nameKo || a.name))">🕐 혼잡도 예측</span>
+        <span x-show="crowd.loading && crowd.place === (a.nameKo || a.name)">분석 중…</span>
+      </button>
+      <template x-if="crowd.result && crowd.place === (a.nameKo || a.name)">
+        <div style="margin-top:10px; background:var(--bg-section); border-radius:12px; padding:14px;">
+          <div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:6px;">🕐 혼잡도 예측</div>
+          <div style="font-size:13px; line-height:1.7; white-space:pre-line;" x-text="crowd.result"></div>
+        </div>
+      </template>
+
+      <button class="btn btn-outline btn-block" style="margin-top:10px;" @click="openEtiquette(a)">🎩 영국 매너 가이드 보기</button>
 
       <button class="btn btn-outline btn-block" style="margin-top:10px;" @click="openInfo(a)">🔎 웹에서 사진·정보 보기</button>
 
@@ -643,6 +677,16 @@
     <!-- ============ 도구 ============ -->
     <section x-show="view === 'tools'" class="app-view">
       <div class="section-title" style="margin-top:0;">🛠️ 도구</div>
+
+      <!-- ▸ 골든벨 진입 카드 (홈 → 도구로 이동) -->
+      <div class="golden-bell-entry card" @click="go('/game')">
+        <span style="font-size:28px;">🎮</span>
+        <div>
+          <div style="font-size:15px; font-weight:700;">오늘의 골든벨</div>
+          <div style="font-size:12px; color:var(--text-secondary);">오늘 방문한 곳으로 가족 퀴즈!</div>
+        </div>
+        <span style="margin-left:auto; font-size:18px; color:var(--primary);">→</span>
+      </div>
 
       <div class="section-title">⏰ 시차 (실시간)</div>
       <div class="card" style="display:flex; justify-content:space-around; text-align:center;">
@@ -1055,6 +1099,58 @@
           </template>
         </div>
       </template>
+
+      <!-- F39: 위치 기반 주변 발견 -->
+      <div class="section-title">📍 주변 발견</div>
+      <div class="card" style="padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div style="font-size:12px; color:var(--text-light);">현재 위치 기준 1km 내 등록된 명소·식당·상점</div>
+          <button class="btn btn-primary" style="padding:6px 14px; font-size:12px; flex-shrink:0;"
+                  @click="fetchNearby()"
+                  :disabled="nearby.loading">
+            <span x-show="!nearby.loading">📡 내 주변</span>
+            <span x-show="nearby.loading">탐색 중…</span>
+          </button>
+        </div>
+        <template x-if="nearby.error">
+          <div style="font-size:12px; color:var(--text-secondary); text-align:center; padding:10px 0;" x-text="nearby.error"></div>
+        </template>
+        <template x-if="nearby.items.length > 0">
+          <div>
+            <template x-for="item in nearby.items" :key="item.id">
+              <div @click="goCard(item.id)"
+                   style="display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); cursor:pointer;">
+                <span style="font-size:22px;" x-text="item.emoji || '📌'"></span>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" x-text="item.nameKo || item.name"></div>
+                  <div style="font-size:11px; color:var(--text-light);" x-text="item.nearestTube ? '🚇 ' + item.nearestTube : ''"></div>
+                </div>
+                <div style="font-size:12px; font-weight:700; color:var(--primary); white-space:nowrap;"
+                     x-text="item.distKm < 0.1 ? (item.distKm * 1000).toFixed(0) + 'm' : item.distKm.toFixed(2) + 'km'"></div>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+
+      <!-- F32: 남은 일정 최적화 -->
+      <div class="section-title">🗺️ 남은 일정 최적화</div>
+      <div class="card" style="padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="font-size:12px; color:var(--text-light);">남은 여행 일정을 Butler가 종합 분석해요</div>
+          <button class="btn btn-primary" style="padding:6px 14px; font-size:12px; flex-shrink:0;"
+                  @click="fetchTripOptimize()"
+                  :disabled="tripOptimize.loading">
+            <span x-show="!tripOptimize.loading">🎩 분석</span>
+            <span x-show="tripOptimize.loading">분석 중…</span>
+          </button>
+        </div>
+        <template x-if="tripOptimize.result">
+          <div style="font-size:13px; line-height:1.7; white-space:pre-line; background:var(--bg-section); border-radius:10px; padding:12px; margin-top:6px;">
+            <span x-text="tripOptimize.result"></span>
+          </div>
+        </template>
+      </div>
     </section>
 
     <!-- ============ 응급 ============ -->
@@ -1357,6 +1453,91 @@
           </template>
         </div>
       </template>
+    </section>
+
+    <!-- ────────── F34: 여행 진행률 대시보드 ────────── -->
+    <section x-show="view === 'progress'" class="app-view">
+      <div class="section-title" style="margin-top:0;">📊 여행 진행률 대시보드</div>
+
+      <!-- 전체 여행 진행 -->
+      <div class="card" style="padding:16px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:10px;">✈️ 전체 여행 진행</div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-bottom:6px;">
+          <span>Day <span x-text="tripDayProgress().current"></span></span>
+          <span x-text="tripDayProgress().pct + '%'"></span>
+        </div>
+        <div style="height:12px; background:var(--bg-section); border-radius:6px; overflow:hidden;">
+          <div style="height:100%; background:var(--primary); border-radius:6px; transition:width 0.4s;"
+               :style="'width:' + tripDayProgress().pct + '%'"></div>
+        </div>
+        <div style="font-size:11px; color:var(--text-light); margin-top:6px; text-align:right;">
+          2026.06.15 — 2026.06.22 (8일)
+        </div>
+      </div>
+
+      <!-- 체크리스트 카테고리별 -->
+      <div class="card" style="padding:16px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:12px;">✅ 체크리스트</div>
+        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-bottom:6px;">
+          <span style="font-weight:600;">전체</span>
+          <span x-text="checkProgress() + '%'"></span>
+        </div>
+        <div style="height:10px; background:var(--bg-section); border-radius:5px; overflow:hidden; margin-bottom:14px;">
+          <div style="height:100%; background:var(--primary); border-radius:5px; transition:width 0.4s;"
+               :style="'width:' + checkProgress() + '%'"></div>
+        </div>
+        <template x-for="cat in checklist" :key="cat.category">
+          <div style="margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+              <span x-text="cat.emoji + ' ' + cat.category"></span>
+              <span style="color:var(--text-light);" x-text="catStats(cat).done + '/' + catStats(cat).total"></span>
+            </div>
+            <div style="height:7px; background:var(--bg-section); border-radius:4px; overflow:hidden;">
+              <div style="height:100%; background:var(--primary); opacity:0.75; border-radius:4px; transition:width 0.4s;"
+                   :style="'width:' + catStats(cat).pct + '%'"></div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- 방문 명소 / 일기 -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div class="card" style="padding:14px; text-align:center;">
+          <div style="font-size:28px; font-weight:800; color:var(--primary);" x-text="visitStats().visited"></div>
+          <div style="font-size:11px; color:var(--text-light); margin-top:2px;">명소 계획</div>
+          <div style="font-size:10px; color:var(--text-light);" x-text="'/' + visitStats().total + '개 중'"></div>
+        </div>
+        <div class="card" style="padding:14px; text-align:center;">
+          <div style="font-size:28px; font-weight:800; color:var(--primary);" x-text="diaryStats().written"></div>
+          <div style="font-size:11px; color:var(--text-light); margin-top:2px;">일기 작성</div>
+          <div style="font-size:10px; color:var(--text-light);" x-text="'/' + diaryStats().total + '일 중'"></div>
+        </div>
+      </div>
+
+      <!-- 예산 사용률 -->
+      <div class="card" style="padding:16px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:700; margin-bottom:10px;">💰 예산 사용률</div>
+        <template x-if="budgetStats().budget > 0">
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-bottom:6px;">
+              <span>£<span x-text="budgetStats().spent.toLocaleString()"></span> 사용</span>
+              <span x-text="budgetStats().pct + '%'"></span>
+            </div>
+            <div style="height:10px; background:var(--bg-section); border-radius:5px; overflow:hidden;">
+              <div style="height:100%; border-radius:5px; transition:width 0.4s;"
+                   :style="'width:' + budgetStats().pct + '%; background:' + (budgetStats().pct >= 90 ? '#dc2626' : budgetStats().pct >= 70 ? '#f59e0b' : 'var(--primary)')"></div>
+            </div>
+            <div style="font-size:11px; color:var(--text-light); margin-top:5px; text-align:right;">
+              총 예산 £<span x-text="Number(budgetStats().budget).toLocaleString()"></span>
+            </div>
+          </div>
+        </template>
+        <template x-if="budgetStats().budget === 0">
+          <div style="font-size:12px; color:var(--text-light); text-align:center; padding:8px;">
+            도구 → 예산 분석에서 예산을 설정하면 여기서 확인할 수 있어요
+          </div>
+        </template>
+      </div>
     </section>
 
   </main>

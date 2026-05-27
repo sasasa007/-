@@ -109,6 +109,13 @@ function tripApp() {
     routeLoading: false,
     routeDayNum: null,
 
+    // 혼잡도 예측 (F25)
+    crowd: { loading: false, result: null, place: null },
+    // 남은 일정 최적화 (F32)
+    tripOptimize: { loading: false, result: null },
+    // 위치 기반 주변 발견 (F39)
+    nearby: { loading: false, items: [], error: null, myLat: null, myLng: null },
+
     // Butler AI
     butlerMessages: [],
     butlerInput: '',
@@ -195,6 +202,7 @@ function tripApp() {
           break;
         case 'checklist': this.view = 'checklist'; break;
         case 'tools': this.view = 'tools'; break;
+        case 'progress': this.view = 'progress'; break;
         case 'tubemap': this.view = 'tubemap'; break;
         case 'game': this.view = 'game'; this.$nextTick(() => this.enterGame()); break;
         case 'emergency': this.view = 'emergency'; break;
@@ -460,6 +468,145 @@ function tripApp() {
       }
     },
 
+    // ---- F25 혼잡도 예측 (Butler 웹 검색) ----
+    async fetchCrowdInfo(placeName) {
+      this.crowd = { loading: true, result: null, place: placeName };
+      const prompt = `런던 여행지 혼잡도 정보: "${placeName}"
+다음 내용을 간단히 알려줘 (한국어, 총 4~6줄):
+⏰ 평균 혼잡 시간대 (가장 붐비는 시각)
+📅 주중 vs 주말 차이
+💡 덜 붐비는 시간대 추천
+🎟️ 입장 대기 시간 (평균)
+최대한 실용적인 정보로. 정보가 없으면 일반적인 관광지 기준으로 대답.`;
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: prompt,
+            context: { place: placeName },
+            taskType: 'general',
+            useWebSearch: true
+          })
+        });
+        const data = await res.json();
+        this.crowd = { loading: false, result: data.answer || data.intro || '정보를 가져오지 못했습니다.', place: placeName };
+      } catch {
+        this.crowd = { loading: false, result: '네트워크 오류가 발생했습니다.', place: placeName };
+      }
+    },
+
+    // ---- F32 남은 일정 자동 최적화 (Butler Sonnet) ----
+    async fetchTripOptimize() {
+      this.tripOptimize = { loading: true, result: null };
+      const today     = new Date().toISOString().slice(0, 10);
+      const tripStart = '2026-06-15';
+      const tripEnd   = '2026-06-22';
+      const todayDate = new Date(today);
+      const endDate   = new Date(tripEnd);
+      const daysLeft  = Math.max(0, Math.ceil((endDate - todayDate) / 86400000));
+      const dayNum    = Math.floor((todayDate - new Date(tripStart)) / 86400000) + 1;
+      // 지금까지 방문한 명소
+      const visited = [];
+      Object.entries(this.store.days || {}).forEach(([n, day]) => {
+        if (Number(n) < dayNum) {
+          (day.activities || []).forEach(id => {
+            const act = this.activities.find(a => a.id === id);
+            if (act) visited.push(act.nameKo || act.name);
+          });
+        }
+      });
+      // 오늘 이후 남은 일정에 계획된 명소
+      const planned = [];
+      Object.entries(this.store.days || {}).forEach(([n, day]) => {
+        if (Number(n) >= dayNum) {
+          (day.activities || []).forEach(id => {
+            const act = this.activities.find(a => a.id === id);
+            if (act) planned.push(`Day${n}: ${act.nameKo || act.name}`);
+          });
+        }
+      });
+      const weatherSummary = this.weather.loaded
+        ? `현재 ${this.weather.tempC}°C, ${this.weather.desc}`
+        : '날씨 정보 없음';
+      const prompt = `런던 가족 여행 남은 일정 종합 조언 (한국어)
+여행 현황:
+- 오늘: ${today} (여행 ${dayNum}일차)
+- 남은 일수: ${daysLeft}일 (${today} ~ ${tripEnd})
+- 현재 날씨: ${weatherSummary}
+- 가족: 아빠(에드워드), 엄마(유효정), 딸(12세)
+이미 방문한 곳: ${visited.length ? visited.join(', ') : '없음'}
+남은 일정에 계획된 곳: ${planned.length ? planned.join(', ') : '없음'}
+다음을 조언해 줘:
+1. 남은 ${daysLeft}일 동안 꼭 가야 할 놓치면 아쉬운 장소 (아직 안 간 곳 중)
+2. 효율적인 동선 (지역별 묶기)
+3. 날씨 대비 실내/야외 밸런스 조언
+4. 딸(12세)이 특히 좋아할 추천 포인트
+5줄 이내로 실용적으로.`;
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: prompt,
+            context: { dayNum, daysLeft },
+            taskType: 'route_optimization',
+            useWebSearch: false
+          })
+        });
+        const data = await res.json();
+        this.tripOptimize = { loading: false, result: data.answer || data.intro || '조언을 불러오지 못했습니다.' };
+      } catch {
+        this.tripOptimize = { loading: false, result: '네트워크 오류가 발생했습니다.' };
+      }
+    },
+
+    // ---- F39 위치 기반 주변 발견 ----
+    _haversineKm(lat1, lng1, lat2, lng2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    },
+    fetchNearby() {
+      if (!navigator.geolocation) {
+        this.nearby = { ...this.nearby, error: 'GPS를 지원하지 않는 기기입니다.', loading: false };
+        return;
+      }
+      this.nearby = { ...this.nearby, loading: true, error: null, items: [] };
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const myLat = pos.coords.latitude;
+          const myLng = pos.coords.longitude;
+          const withDist = this.activities
+            .filter(a => a.coordinates && a.coordinates.lat && a.coordinates.lng)
+            .map(a => ({
+              ...a,
+              distKm: this._haversineKm(myLat, myLng, a.coordinates.lat, a.coordinates.lng)
+            }))
+            .filter(a => a.distKm <= 1.0)
+            .sort((a, b) => a.distKm - b.distKm)
+            .slice(0, 8);
+          this.nearby = {
+            loading: false,
+            items: withDist,
+            error: withDist.length === 0 ? '1km 내 등록된 장소가 없습니다. 여행 지역으로 이동하면 표시돼요!' : null,
+            myLat, myLng
+          };
+        },
+        (err) => {
+          const msg = err.code === 1 ? 'GPS 권한을 허용해 주세요.' :
+                      err.code === 2 ? '위치를 가져올 수 없습니다.' :
+                      '위치 요청 시간이 초과됐습니다.';
+          this.nearby = { ...this.nearby, loading: false, error: msg, items: [] };
+        },
+        { timeout: 10000, maximumAge: 30000 }
+      );
+    },
+
     async fetchCurrency() {
       try {
         const res = await fetch('https://api.frankfurter.dev/v1/latest?base=GBP&symbols=KRW', { cache: 'no-cache' });
@@ -638,6 +785,42 @@ function tripApp() {
       const total = (cat.items || []).length;
       const done = (cat.items || []).filter(it => this.isChecked(it.id)).length;
       return { done, total, pct: total ? Math.round(done / total * 100) : 0 };
+    },
+
+    // ---- F34 진행률 대시보드 통계 ----
+    // 여행일기 작성 통계 (며칠 작성했는지)
+    diaryStats() {
+      const total = this.days.length;
+      const written = this.days.filter(d => {
+        const entry = this.store.diary && this.store.diary[d.day];
+        return entry && entry.text && entry.text.trim().length > 0;
+      }).length;
+      return { written, total };
+    },
+    // 방문(계획에 추가된) 명소 통계
+    visitStats() {
+      const visited = new Set();
+      Object.values(this.store.days || {}).forEach(day => {
+        (day.activities || []).forEach(id => visited.add(id));
+      });
+      return { visited: visited.size, total: this.activities.length };
+    },
+    // 예산 사용률 (기존 expenseBudget/expenseTotal 재사용)
+    budgetStats() {
+      const budget = this.expenseBudget();
+      const spent = this.expenseTotal();
+      const pct = budget > 0 ? Math.min(100, Math.round(spent / budget * 100)) : 0;
+      return { budget, spent, pct };
+    },
+    // 현재 여행일차 진행률 (D+N, 0~8)
+    tripDayProgress() {
+      const start = new Date('2026-06-15T00:00:00');
+      const end   = new Date('2026-06-22T00:00:00');
+      const now   = new Date();
+      if (now < start) return { current: 0, total: 8, pct: 0 };
+      if (now > end)   return { current: 8, total: 8, pct: 100 };
+      const elapsed = Math.floor((now - start) / 86400000) + 1;
+      return { current: Math.min(elapsed, 8), total: 8, pct: Math.min(100, Math.round(elapsed / 8 * 100)) };
     },
 
     // ---- 다크모드 ----
