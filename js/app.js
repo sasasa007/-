@@ -1,5 +1,9 @@
 // 우리 가족 런던 트립 — 메인 Alpine 앱
 function tripApp() {
+  // Firebase 게임 ref·타이머는 Alpine 반응성(Proxy) 밖에 보관 (객체 프록시 충돌 방지)
+  let gameRef = null;
+  let gameTimer = null;
+
   return {
     // ---- 상태 ----
     loaded: false,
@@ -79,6 +83,21 @@ function tripApp() {
       inputs: { dad: '', mom: '', kid: '' },
       loading: false,
       result: null
+    },
+
+    // ── 골든벨 게임 (Firebase /game 경로로 3대 동기화) ──
+    game: {
+      playerRole: null,        // 'dad' | 'mom' | 'kid'
+      selectedAnswer: null,
+      timeLeft: 10,
+      status: 'idle',          // idle|generating|waiting|question|reveal|finished
+      dayNum: null,
+      questions: [],
+      currentQ: 0,
+      questionStartAt: null,
+      answers: {},
+      scores: { dad: 0, mom: 0, kid: 0 },
+      players: {}
     },
 
     // 명소 카드 Butler 인사이트
@@ -162,6 +181,8 @@ function tripApp() {
     syncFromHash() {
       const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
       const [v, a, b] = parts;
+      // 게임 화면을 떠나면 구독 해제 + 접속 표시 해제
+      if (this.view === 'game' && v !== 'game') this._leaveGameCleanup();
       switch (v) {
         case 'day': this.view = 'day'; this.dayNum = +a || 1; break;
         case 'zone': this.view = 'zone'; this.zoneId = a; if (b) this.dayNum = +b; this.typeFilter = 'all'; break;
@@ -175,6 +196,7 @@ function tripApp() {
         case 'checklist': this.view = 'checklist'; break;
         case 'tools': this.view = 'tools'; break;
         case 'tubemap': this.view = 'tubemap'; break;
+        case 'game': this.view = 'game'; this.$nextTick(() => this.enterGame()); break;
         case 'emergency': this.view = 'emergency'; break;
         default: this.view = 'home';
       }
@@ -1137,6 +1159,171 @@ ${existing ? '\n※ 기존 일기가 있음. 다른 시각·에피소드로 새�
     },
     tubeLineKo(line) {
       return (window.TUBE_LINE_KO && window.TUBE_LINE_KO[line]) || line;
+    },
+
+    // ═══════════════ 골든벨 게임 ═══════════════
+    enterGame() {
+      this.view = 'game';
+      if (!this.game.playerRole || !this.sync.enabled) return;
+      if (gameRef) gameRef.off();   // 중복 구독 방지
+      gameRef = firebase.database().ref('hwang-london-2026/game');
+      gameRef.child('players').child(this.game.playerRole).set(true);
+      gameRef.on('value', (snap) => {
+        const d = snap.val();
+        if (!d) return;
+        const prevStatus = this.game.status, prevQ = this.game.currentQ;
+        this.game.status = d.status || 'idle';
+        this.game.dayNum = d.dayNum || null;
+        this.game.questions = d.questions || [];
+        this.game.currentQ = d.currentQ || 0;
+        this.game.questionStartAt = d.questionStartAt || null;
+        this.game.answers = d.answers || {};
+        this.game.scores = d.scores || { dad: 0, mom: 0, kid: 0 };
+        this.game.players = d.players || {};
+        if (d.currentQ !== prevQ) this.game.selectedAnswer = null;
+        if (d.status === 'question' && (prevStatus !== 'question' || d.currentQ !== prevQ)) this._startGameTimer();
+        if (d.status !== 'question') this._stopGameTimer();
+      });
+    },
+    leaveGame() { this._leaveGameCleanup(); this.go('/'); },
+    _leaveGameCleanup() {
+      this._stopGameTimer();
+      if (gameRef) {
+        if (this.game.playerRole) { try { gameRef.child('players').child(this.game.playerRole).set(false); } catch (e) {} }
+        gameRef.off();
+        gameRef = null;
+      }
+    },
+
+    // ── 아빠(Host) 전용 ──
+    async startGenerating() {
+      if (this.game.playerRole !== 'dad' || !this.sync.enabled) return;
+      const ref = firebase.database().ref('hwang-london-2026/game');
+      const today = new Date().toISOString().slice(0, 10);
+      const dayNum = Math.floor((new Date(today) - new Date('2026-06-15')) / 86400000) + 1;
+      const safeDayNum = (dayNum >= 1 && dayNum <= 8) ? dayNum : 1;
+      const activities = this.dayActivities(safeDayNum).map(a => a.nameKo || a.name).join(', ') || '런던 시내 관광';
+      await ref.update({ status: 'generating', dayNum: safeDayNum, questions: [] });
+      const prompt = `오늘(Day ${safeDayNum}) 황씨 가족이 런던에서 방문한 장소: ${activities}
+가족: 아빠(에드워드), 엄마(유효정), 딸(만 12세, 영어 능숙)
+골든벨 퀴즈 10문제를 아래 JSON 형식으로만 반환하세요. 다른 텍스트·설명·마크다운 절대 금지.
+- 4지선다 7문제 + OX 3문제
+- 오늘 방문한 곳 위주, 난이도 쉬움~보통, 영어/역사/실용 균형, 재미있는 선지 포함
+{"questions":[{"id":1,"type":"4choice","q":"질문","opts":["A. ..","B. ..","C. ..","D. .."],"ans":"A","fact":"해설 한 줄"},{"id":8,"type":"ox","q":"질문","opts":["O. 맞다","X. 틀리다"],"ans":"O","fact":"해설"}]}`;
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: prompt, taskType: 'general', useWebSearch: false })  // Haiku
+        });
+        const data = await res.json();
+        const questions = this._extractQuestions(data);
+        if (!Array.isArray(questions) || questions.length < 5) throw new Error('문제 파싱 실패');
+        await ref.update({ questions: questions.slice(0, 10), status: 'waiting' });
+      } catch (e) {
+        console.error('문제 생성 실패 → 폴백 사용', e);
+        await ref.update({ questions: this._fallbackQuestions(safeDayNum), status: 'waiting' });
+      }
+    },
+    // Butler 응답의 다양한 형태에서 questions 배열을 견고하게 추출
+    _extractQuestions(data) {
+      if (data && Array.isArray(data.questions)) return data.questions;
+      const text = (data && typeof data.answer === 'string' && data.answer) ||
+                   (data && typeof data.intro === 'string' && data.intro) ||
+                   (data && data.content && data.content[0] && data.content[0].text) || '';
+      if (!text) return null;
+      const cleaned = String(text).replace(/```json/gi, '').replace(/```/g, '').trim();
+      const s = cleaned.indexOf('{'), e = cleaned.lastIndexOf('}');
+      if (s < 0 || e <= s) return null;
+      try { const p = JSON.parse(cleaned.slice(s, e + 1)); return Array.isArray(p.questions) ? p.questions : null; }
+      catch (_) { return null; }
+    },
+    _fallbackQuestions(dayNum) {
+      return [
+        { id:1, type:'ox',      q:'Tower Bridge는 도개교(양쪽이 들어올려지는 다리)다', opts:['O. 맞다','X. 틀리다'], ans:'O', fact:'1894년 개통, 지금도 큰 배가 지나갈 때 열린다' },
+        { id:2, type:'4choice', q:'런던의 빨간 2층 버스 이름은?', opts:['A. 루트마스터','B. 레드버스','C. 더블데커','D. 빨강이'], ans:'A', fact:'Routemaster, 1956년부터 운행한 런던의 상징' },
+        { id:3, type:'ox',      q:'Borough Market은 입장이 무료다', opts:['O. 맞다','X. 틀리다'], ans:'O', fact:'입장 무료, 음식 구매는 유료' },
+        { id:4, type:'4choice', q:'템스강에서 가장 높은 전망 건물은?', opts:['A. 더 샤드','B. 런던아이','C. 빅벤','D. 타워브리지'], ans:'A', fact:'The Shard, 310m로 서유럽 최고층 중 하나' },
+        { id:5, type:'ox',      q:'런던 버스는 현금으로 탈 수 없다', opts:['O. 맞다','X. 틀리다'], ans:'O', fact:'2014년부터 카드/Oyster만 가능, 현금 불가' }
+      ];
+    },
+    async startGame() {
+      if (this.game.playerRole !== 'dad' || !this.sync.enabled) return;
+      await firebase.database().ref('hwang-london-2026/game').update({
+        status: 'question', currentQ: 0, answers: {},
+        scores: { dad: 0, mom: 0, kid: 0 }, questionStartAt: Date.now()
+      });
+    },
+    async revealAnswer() {
+      if (this.game.playerRole !== 'dad' || !this.sync.enabled) return;
+      this._stopGameTimer();
+      const q = this.game.questions[this.game.currentQ];
+      const ans = (this.game.answers && this.game.answers[String(this.game.currentQ)]) || {};
+      const newScores = { ...this.game.scores };
+      ['dad', 'mom', 'kid'].forEach(role => {
+        if (q && ans[role] === q.ans) newScores[role] = (newScores[role] || 0) + 10;  // 전원 동일 10점
+      });
+      await firebase.database().ref('hwang-london-2026/game').update({ status: 'reveal', scores: newScores });
+    },
+    async nextQuestion() {
+      if (this.game.playerRole !== 'dad' || !this.sync.enabled) return;
+      const ref = firebase.database().ref('hwang-london-2026/game');
+      const nextQ = this.game.currentQ + 1;
+      if (nextQ >= this.game.questions.length) {
+        await ref.update({ status: 'finished' });
+      } else {
+        await ref.update({ status: 'question', currentQ: nextQ, questionStartAt: Date.now() });
+      }
+    },
+    async resetGame() {
+      if (this.game.playerRole !== 'dad' || !this.sync.enabled) return;
+      await firebase.database().ref('hwang-london-2026/game').update({
+        status: 'idle', dayNum: null, questions: [], currentQ: 0,
+        questionStartAt: null, answers: {}, scores: { dad: 0, mom: 0, kid: 0 }
+      });
+      this.game.selectedAnswer = null;
+    },
+
+    // ── 플레이어(모두) ──
+    async submitAnswer(option) {
+      if (this.game.status !== 'question' || this.game.selectedAnswer) return;
+      this.game.selectedAnswer = option;
+      if (!this.sync.enabled) return;
+      try {
+        await firebase.database().ref('hwang-london-2026/game/answers/' + this.game.currentQ + '/' + this.game.playerRole).set(option);
+      } catch (e) {}
+    },
+
+    // ── 타이머 ──
+    _startGameTimer() {
+      this._stopGameTimer();
+      const tick = () => {
+        const elapsed = Math.floor((Date.now() - (this.game.questionStartAt || Date.now())) / 1000);
+        this.game.timeLeft = Math.max(0, 10 - elapsed);
+        if (this.game.timeLeft <= 0 && this.game.playerRole === 'dad' && this.game.status === 'question') {
+          this._stopGameTimer();
+          this.revealAnswer();
+        }
+      };
+      tick();
+      gameTimer = setInterval(tick, 500);
+    },
+    _stopGameTimer() {
+      if (gameTimer) { clearInterval(gameTimer); gameTimer = null; }
+      this.game.timeLeft = 10;
+    },
+
+    // ── 헬퍼 ──
+    currentQuestion() { return this.game.questions[this.game.currentQ] || null; },
+    playerLabel(role) { return { dad: '👨 아빠', mom: '👩 엄마', kid: '👧 딸' }[role] || role; },
+    gameRanking() {
+      return ['dad', 'mom', 'kid']
+        .map(r => ({ role: r, score: (this.game.scores && this.game.scores[r]) || 0 }))
+        .sort((a, b) => b.score - a.score);
+    },
+    gameAnswerOf(role) {
+      const a = this.game.answers && this.game.answers[String(this.game.currentQ)];
+      return a ? a[role] : null;
     }
   };
 }

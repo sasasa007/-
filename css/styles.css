@@ -1082,3 +1082,53 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   padding: 13px; border-radius: 14px; text-decoration: none;
 }
 .tube-hint { text-align: center; font-size: 12px; color: var(--text-light); padding: 14px; line-height: 1.7; }
+
+/* ── 골든벨 게임 ── */
+.butler-loading-dots { display: flex; gap: 6px; }
+.butler-loading-dots span {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--primary);
+  animation: blDot 1s infinite ease-in-out;
+}
+.butler-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.butler-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blDot { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+
+.golden-bell-entry { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; margin-bottom: 12px; }
+.btn-role {
+  width: 100%; padding: 16px; border-radius: 14px; border: 2px solid var(--border);
+  background: var(--bg-card); font-size: 16px; font-weight: 600; cursor: pointer;
+  text-align: left; color: var(--text-primary); display: flex; align-items: center; gap: 8px; transition: all 0.2s;
+}
+.btn-role:active { transform: scale(0.98); background: var(--bg-section); }
+.role-badge { font-size: 10px; padding: 2px 8px; border-radius: 8px; font-weight: 700; margin-left: auto; background: var(--bg-section); color: var(--text-secondary); }
+.role-badge.host { background: var(--primary-light); color: var(--primary); }
+
+.game-progress-bar { display: flex; justify-content: space-between; align-items: center; padding: 4px 4px 10px; }
+.game-timer {
+  width: 44px; height: 44px; border-radius: 50%; background: var(--primary-light); color: var(--primary);
+  font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; transition: background 0.3s, color 0.3s;
+}
+.game-timer.danger { background: #fee2e2; color: #dc2626; animation: syncPulse 0.5s infinite; }
+.timer-track { height: 6px; background: var(--bg-section); border-radius: 3px; overflow: hidden; margin: 0 0 12px; }
+.timer-fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width 0.5s linear, background 0.3s; }
+.timer-fill.danger { background: #dc2626; }
+.game-question-box { padding: 16px 18px; background: var(--bg-section); margin: 0 0 16px; border-radius: 14px; min-height: 84px; }
+.game-options { display: grid; gap: 10px; margin-bottom: 6px; }
+.four-grid { grid-template-columns: 1fr 1fr; }
+.ox-grid { grid-template-columns: 1fr 1fr; }
+.game-option-btn {
+  padding: 16px 8px; border-radius: 14px; border: 2px solid var(--border); background: var(--bg-card);
+  font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; color: var(--text-primary);
+  line-height: 1.4; transition: all 0.15s; min-height: 58px;
+}
+.game-option-btn:active { transform: scale(0.97); }
+.game-option-btn.selected { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+.game-option-btn:disabled { opacity: 0.7; cursor: default; }
+.reveal-answer-box { background: rgba(39,174,96,0.10); border: 2px solid var(--success); border-radius: 14px; padding: 16px; text-align: center; }
+.reveal-player-row { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; font-size: 13px; }
+.reveal-player-row.correct { background: rgba(39,174,96,0.10); border: 1px solid #86efac; }
+.reveal-player-row.wrong { background: rgba(231,76,60,0.08); border: 1px solid #fca5a5; }
+.score-snapshot { background: var(--bg-section); border-radius: 14px; padding: 14px 16px; margin-top: 8px; }
+.score-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; padding: 4px 0; }
+.score-val { font-weight: 800; color: var(--primary); font-size: 16px; }
+.final-rank-row { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); }
