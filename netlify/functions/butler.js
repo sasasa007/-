@@ -43,6 +43,7 @@ export default async (req) => {
   function selectModel() {
     if (taskType === 'route_optimization') return 'claude-sonnet-4-6';
     if (taskType === 'trip_advice') return 'claude-sonnet-4-6';  // 일반 프롬프트(answer 반환)지만 품질 위해 Sonnet
+    if (taskType === 'itinerary') return 'claude-sonnet-4-6';     // 전세계 일정 생성 (Trip Butler 프로토타입)
     if (useWebSearch) return 'claude-sonnet-4-6';
     return 'claude-haiku-4-5';
   }
@@ -140,11 +141,62 @@ ${JSON.stringify(context, null, 2)}
   ]
 }`;
 
+  // 전세계 일정 생성 프롬프트 (Trip Butler 프로토타입 — 도시 무관)
+  const itinerarySystemPrompt = `당신은 전세계 여행을 설계하는 AI 여행 플래너 "Trip Butler"입니다.
+사용자가 준 도시·기간·동행·관심사에 맞춰 현실적이고 실용적인 여행 일정을 설계합니다.
+
+설계 원칙:
+1. 실제로 존재하는 장소만 사용 (가상의 장소·이름 절대 금지)
+2. 지리적으로 가까운 장소를 같은 날에 묶어 이동 동선 최소화
+3. 하루 3~5개 활동, 식사(점심·저녁)를 자연스럽게 포함, 무리하지 않게
+4. 동행 구성 반영 (가족·아이 → 안전·체험 / 커플 → 분위기 / 친구 → 활동 / 혼자 → 자유도)
+5. 관심사를 우선 반영하되 그 도시의 대표 명소도 균형 있게
+6. lat·lng는 실제 위치에 최대한 정확하게 (소수점 4자리)
+7. 모든 한국어 텍스트는 자연스럽고 간결하게
+
+반드시 아래 JSON 형식으로만 응답하세요. 마크다운 코드블록(\`\`\`)·설명·인사말 절대 금지. JSON 객체만 반환:
+{
+  "type": "itinerary",
+  "destination": {
+    "city": "영문 도시명", "cityKo": "한국어 도시명",
+    "country": "영문 국가명", "countryKo": "한국어 국가명",
+    "lat": 0.0, "lng": 0.0,
+    "currency": "ISO 통화코드 (예: JPY, EUR, USD)", "currencySymbol": "통화기호",
+    "language": "주요 언어", "summary": "도시 한 줄 소개 (40자 이내)",
+    "highlights": ["대표 키워드", "3개"]
+  },
+  "days": [
+    {
+      "day": 1,
+      "concept": "그날의 테마 (한국어, 20자 이내)",
+      "activities": [
+        {
+          "name": "영문 장소명", "nameKo": "한국어 장소명",
+          "type": "attraction|restaurant|cafe|shop|park|nightlife|experience",
+          "emoji": "이모지", "lat": 0.0, "lng": 0.0,
+          "duration": "예: 1-2h",
+          "why": "이 동행에게 추천하는 이유 (한 줄)",
+          "tip": "현장 팁 (선택, 한 줄)"
+        }
+      ]
+    }
+  ],
+  "tips": ["여행 실용 팁 (2~3개, 한국어)"]
+}
+
+요청한 일수만큼 days를 채우세요. 활동(activities)은 하루 3~5개. 출력은 압축된 JSON으로 간결하게.`;
+
   const tools = useWebSearch ? [{
     type: 'web_search_20250305',
     name: 'web_search',
     max_uses: 3
   }] : [];
+
+  // 시스템 프롬프트 선택
+  const sysPrompt =
+    taskType === 'route_optimization' ? routeSystemPrompt :
+    taskType === 'itinerary'          ? itinerarySystemPrompt :
+    systemPrompt;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -156,8 +208,8 @@ ${JSON.stringify(context, null, 2)}
       },
       body: JSON.stringify({
         model: selectModel(),
-        max_tokens: taskType === 'route_optimization' ? 2500 : 2000,
-        system: taskType === 'route_optimization' ? routeSystemPrompt : systemPrompt,
+        max_tokens: taskType === 'itinerary' ? 4000 : (taskType === 'route_optimization' ? 2500 : 2000),
+        system: sysPrompt,
         tools: tools.length ? tools : undefined,
         messages: [{ role: 'user', content: query }]
       })
