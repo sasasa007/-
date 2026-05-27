@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1.1.9';
+const CACHE_VERSION = 'v1.1.10';
 const CACHE_NAME = `london-trip-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
@@ -8,6 +8,7 @@ const STATIC_ASSETS = [
   '/css/styles.css',
   '/js/app.js',
   '/js/storage.js',
+  '/js/tube-stations.js',
   '/js/pwa.js',
   '/data/days.json',
   '/data/zones.json',

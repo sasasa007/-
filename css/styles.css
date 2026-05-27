@@ -1017,3 +1017,68 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .sync-indicator.syncing { animation: syncPulse 1s infinite; }
 @keyframes syncPulse { 0%, 100% { opacity: 0.75; } 50% { opacity: 0.3; } }
+
+/* ── 인터랙티브 튜브맵 (역 선택 경로) ── */
+.tube-select-guide {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; margin-bottom: 12px;
+  background: var(--bg-section); border-radius: 12px;
+}
+.tube-guide-chip {
+  flex: 1; padding: 8px 10px; border-radius: 10px;
+  font-size: 12px; font-weight: 600; text-align: center;
+  background: var(--bg-card); border: 1.5px dashed var(--border);
+  color: var(--text-secondary); transition: all 0.2s; min-width: 0;
+}
+.tube-guide-chip span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tube-guide-chip.active { border-color: var(--primary); color: var(--primary); background: var(--primary-light); border-style: solid; }
+.tube-guide-chip.done { border-color: var(--success); border-style: solid; color: var(--success); }
+
+.tube-search {
+  width: 100%; box-sizing: border-box; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  font-size: 14px; background: var(--bg-card); color: var(--text-primary);
+  margin-bottom: 8px;
+}
+.tube-station-list { display: flex; flex-direction: column; gap: 6px; }
+.tube-station-row {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; text-align: left; padding: 11px 12px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; cursor: pointer; transition: all 0.15s;
+}
+.tube-station-row:active { transform: scale(0.99); }
+.tube-station-row.from { border-color: var(--success); background: rgba(39,174,96,0.10); }
+.tube-station-row.to   { border-color: var(--error);   background: rgba(231,76,60,0.10); }
+.tube-line-dots { display: flex; gap: 3px; flex: none; }
+.tube-line-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.15); }
+.tube-station-name { flex: 1; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.tube-station-role-tag {
+  flex: none; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 8px;
+  background: var(--bg-section); color: var(--text-secondary);
+}
+.tube-station-row.from .tube-station-role-tag { background: var(--success); color: #fff; }
+.tube-station-row.to   .tube-station-role-tag { background: var(--error);   color: #fff; }
+
+/* 결과 패널 */
+.tube-result-panel { padding: 14px; background: var(--bg-section); border-radius: 14px; margin-bottom: 12px; }
+.tube-loading { text-align: center; color: var(--text-secondary); font-size: 13px; padding: 6px 0; }
+.tube-error { font-size: 12px; color: var(--error); text-align: center; padding: 6px 0 10px; }
+.tube-result-header {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);
+}
+.tube-duration-badge { flex: none; font-size: 12px; font-weight: 700; background: var(--primary-light); color: var(--primary); padding: 3px 10px; border-radius: 20px; }
+.tube-legs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.tube-leg-walk { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; padding: 4px 2px; }
+.tube-leg-train { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; background: var(--bg-card); border-radius: 10px; }
+.tube-line-badge { display: inline-block; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; width: fit-content; }
+.tube-leg-detail { font-size: 12px; color: var(--text-primary); font-weight: 500; }
+.tube-leg-time { font-size: 11px; color: var(--text-secondary); }
+.tube-leg-walk .tube-leg-time { margin-left: auto; }
+.btn-tube-maps {
+  display: block; width: 100%; box-sizing: border-box; text-align: center;
+  background: var(--primary); color: #fff; font-size: 14px; font-weight: 700;
+  padding: 13px; border-radius: 14px; text-decoration: none;
+}
+.tube-hint { text-align: center; font-size: 12px; color: var(--text-light); padding: 14px; line-height: 1.7; }

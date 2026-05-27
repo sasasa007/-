@@ -39,6 +39,14 @@ function tripApp() {
     _isSyncing: false,       // 자체 write로 인한 listener 재진입 방지
     _deviceId: null,
     _lastPushed: {},         // 필드별 마지막 푸시 스냅샷(JSON) — 변경된 필드만 전송
+
+    // 인터랙티브 튜브맵 (역 목록 피커 + TfL Journey)
+    tubeStations: [],
+    tubeFilter: '',
+    tubeMap: {
+      from: null, to: null, selecting: 'from',
+      journey: null, journeyLoading: false, journeyError: null
+    },
     currency: { loaded: false, rate: 0, date: '' },
 
     // 오늘의 추천 일정 (날씨 기반 Butler)
@@ -137,6 +145,9 @@ function tripApp() {
       setInterval(() => this.fetchCurrency(), 60 * 60 * 1000); // 1시간마다
       setInterval(() => this.fetchTfl(), 5 * 60 * 1000);       // 5분마다
 
+      // 튜브맵 역 데이터 로드
+      this.tubeStations = window.TUBE_STATIONS || [];
+
       // Firebase 실시간 동기화 초기화
       this.initFirebase();
 
@@ -163,6 +174,7 @@ function tripApp() {
           break;
         case 'checklist': this.view = 'checklist'; break;
         case 'tools': this.view = 'tools'; break;
+        case 'tubemap': this.view = 'tubemap'; break;
         case 'emergency': this.view = 'emergency'; break;
         default: this.view = 'home';
       }
@@ -1043,6 +1055,88 @@ ${existing ? '\n※ 기존 일기가 있음. 다른 시각·에피소드로 새�
 
     routeTypeIcon(type) {
       return { attraction: '🏛️', restaurant: '🍽️', shop: '🛍️', pub: '🍺', rest: '☕', hotel: '🏨' }[type] || '📍';
+    },
+
+    // ── 인터랙티브 튜브맵 (역 목록 피커 + TfL Journey) ──
+    filteredTubeStations() {
+      const q = (this.tubeFilter || '').trim().toLowerCase();
+      const list = this.tubeStations || [];
+      if (!q) return list;
+      return list.filter(s => s.name.toLowerCase().includes(q));
+    },
+    isTubeSelected(st) {
+      return (this.tubeMap.from && this.tubeMap.from.id === st.id) ||
+             (this.tubeMap.to && this.tubeMap.to.id === st.id);
+    },
+    tubeStationRole(st) {
+      if (this.tubeMap.from && this.tubeMap.from.id === st.id) return 'from';
+      if (this.tubeMap.to && this.tubeMap.to.id === st.id) return 'to';
+      return null;
+    },
+    selectTubeStation(station) {
+      if (this.tubeMap.selecting === 'from') {
+        this.tubeMap.from = station;
+        this.tubeMap.selecting = 'to';
+        this.tubeMap.to = null;
+        this.tubeMap.journey = null;
+        this.tubeMap.journeyError = null;
+      } else {
+        if (station.id === (this.tubeMap.from && this.tubeMap.from.id)) return; // 같은 역 방지
+        this.tubeMap.to = station;
+        this.tubeMap.selecting = 'from';
+        this.fetchTubeJourney();
+      }
+    },
+    resetTubeSelection() {
+      this.tubeMap = { from: null, to: null, selecting: 'from', journey: null, journeyLoading: false, journeyError: null };
+      this.tubeFilter = '';
+    },
+    async fetchTubeJourney() {
+      if (!this.tubeMap.from || !this.tubeMap.to) return;
+      this.tubeMap.journeyLoading = true;
+      this.tubeMap.journey = null;
+      this.tubeMap.journeyError = null;
+      const clean = (n) => n.replace(/\s*\/.*$/, '').replace(/'/g, '');  // "Bank / .." → "Bank", 아포스트로피 제거
+      const from = encodeURIComponent(clean(this.tubeMap.from.name) + ' Underground Station');
+      const to = encodeURIComponent(clean(this.tubeMap.to.name) + ' Underground Station');
+      try {
+        const res = await fetch(
+          `https://api.tfl.gov.uk/Journey/JourneyResults/${from}/to/${to}?mode=tube,elizabeth-line,dlr`,
+          { cache: 'no-cache' }
+        );
+        if (!res.ok) throw new Error('TfL ' + res.status);
+        const data = await res.json();
+        const journey = data.journeys && data.journeys[0];
+        if (!journey) throw new Error('경로 없음');
+        const legs = (journey.legs || [])
+          .filter(l => !(l.mode && l.mode.id === 'walking' && (l.duration || 0) <= 2))
+          .map(l => ({
+            from: (l.departurePoint && l.departurePoint.commonName || '').replace(/ Underground Station| DLR Station| Rail Station/g, ''),
+            to: (l.arrivalPoint && l.arrivalPoint.commonName || '').replace(/ Underground Station| DLR Station| Rail Station/g, ''),
+            line: (l.routeOptions && l.routeOptions[0] && l.routeOptions[0].name) || (l.instruction && l.instruction.summary) || '',
+            duration: l.duration || 0,
+            stops: (l.stopPoints && l.stopPoints.length) || 0,
+            isWalking: !!(l.mode && l.mode.id === 'walking')
+          }));
+        this.tubeMap.journey = { duration: journey.duration, legs };
+      } catch (e) {
+        this.tubeMap.journeyError = 'TfL 경로를 못 불러왔어요. 아래 구글맵으로 확인하세요.';
+      } finally {
+        this.tubeMap.journeyLoading = false;
+      }
+    },
+    tubeGoogleMapsUrl() {
+      if (!this.tubeMap.from || !this.tubeMap.to) return '#';
+      const o = encodeURIComponent(this.tubeMap.from.name + ' station london');
+      const d = encodeURIComponent(this.tubeMap.to.name + ' station london');
+      return `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=transit`;
+    },
+    tubeLineColor(line) {
+      const key = (line || '').toLowerCase().replace(/ line/g, '').replace(/[-\s]/g, '_');
+      return (window.TUBE_LINE_COLORS && window.TUBE_LINE_COLORS[key]) || '#666';
+    },
+    tubeLineKo(line) {
+      return (window.TUBE_LINE_KO && window.TUBE_LINE_KO[line]) || line;
     }
   };
 }

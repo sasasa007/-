@@ -772,13 +772,14 @@
           </div>
         </template>
       </div>
-      <div style="font-size:12px; color:var(--text-light); margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
-        <span>5분마다 자동 갱신</span>
-        <a href="https://tfl.gov.uk/maps/track/tube" target="_blank"
-           style="color:var(--primary); font-size:12px; font-weight:600; text-decoration:none;">
-          🗺️ 전체 튜브맵 보기 →
-        </a>
-      </div>
+      <div style="font-size:12px; color:var(--text-light); margin-top:6px;">5분마다 자동 갱신</div>
+      <button class="btn btn-primary btn-block" style="margin-top:10px;" @click="go('/tubemap')">
+        🚇 지하철 경로 찾기 (역 선택)
+      </button>
+      <a href="https://tfl.gov.uk/maps/track/tube" target="_blank"
+         style="display:block; text-align:center; color:var(--text-light); font-size:11px; margin-top:8px; text-decoration:underline;">
+        🗺️ 공식 튜브맵 이미지 보기 →
+      </a>
 
       <!-- ===== 가족 협상 도우미 ===== -->
       <div class="section-title">🤝 가족 협상 도우미</div>
@@ -1094,6 +1095,88 @@
       </div>
     </section>
 
+    <!-- ============ 튜브맵 (역 선택 경로 조회) ============ -->
+    <section x-show="view === 'tubemap'" class="app-view">
+      <div class="section-title" style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
+        <span>🚇 지하철 경로 찾기</span>
+        <button class="btn btn-sm btn-outline" style="font-size:11px; padding:3px 10px;" @click="resetTubeSelection()">초기화</button>
+      </div>
+
+      <!-- 출발/도착 가이드 -->
+      <div class="tube-select-guide">
+        <div class="tube-guide-chip" :class="tubeMap.selecting === 'from' ? 'active' : (tubeMap.from ? 'done' : '')">
+          <span x-text="tubeMap.from ? '🟢 ' + tubeMap.from.name : '① 출발역 선택'"></span>
+        </div>
+        <span style="color:var(--text-light); font-size:16px;">→</span>
+        <div class="tube-guide-chip" :class="tubeMap.selecting === 'to' ? 'active' : (tubeMap.to ? 'done' : '')">
+          <span x-text="tubeMap.to ? '🔴 ' + tubeMap.to.name : '② 도착역 선택'"></span>
+        </div>
+      </div>
+
+      <!-- 경로 결과 패널 -->
+      <template x-if="tubeMap.from && tubeMap.to">
+        <div class="tube-result-panel">
+          <template x-if="tubeMap.journeyLoading">
+            <div class="tube-loading">🚇 경로 계산 중…</div>
+          </template>
+          <template x-if="!tubeMap.journeyLoading && tubeMap.journey">
+            <div>
+              <div class="tube-result-header">
+                <span x-text="tubeMap.from.name + ' → ' + tubeMap.to.name"></span>
+                <span class="tube-duration-badge" x-text="'⏱ ' + tubeMap.journey.duration + '분'"></span>
+              </div>
+              <div class="tube-legs">
+                <template x-for="(leg, i) in tubeMap.journey.legs" :key="i">
+                  <div class="tube-leg-row">
+                    <template x-if="leg.isWalking">
+                      <div class="tube-leg-walk">🚶 <span x-text="leg.from + ' → ' + leg.to"></span>
+                        <span class="tube-leg-time" x-text="'도보 ' + leg.duration + '분'"></span></div>
+                    </template>
+                    <template x-if="!leg.isWalking">
+                      <div class="tube-leg-train">
+                        <span class="tube-line-badge" :style="'background:' + tubeLineColor(leg.line)" x-text="leg.line"></span>
+                        <span class="tube-leg-detail" x-text="leg.from + ' 승차 → ' + leg.to + ' 하차'"></span>
+                        <span class="tube-leg-time" x-text="(leg.stops ? leg.stops + '정거장 · ' : '') + leg.duration + '분'"></span>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+          <template x-if="!tubeMap.journeyLoading && tubeMap.journeyError">
+            <div class="tube-error" x-text="tubeMap.journeyError"></div>
+          </template>
+          <!-- 구글맵 딥링크: TfL 성공/실패 무관하게 항상 제공 -->
+          <a x-show="!tubeMap.journeyLoading" :href="tubeGoogleMapsUrl()" target="_blank" class="btn-tube-maps">
+            🗺️ 구글맵으로 길찾기
+          </a>
+        </div>
+      </template>
+
+      <!-- 역 검색 + 목록 -->
+      <input type="text" class="tube-search" x-model="tubeFilter"
+        :placeholder="(tubeMap.selecting === 'from' ? '출발' : '도착') + '역 검색…'">
+      <div class="tube-station-list">
+        <template x-for="st in filteredTubeStations()" :key="st.id">
+          <button class="tube-station-row" :class="tubeStationRole(st)" @click="selectTubeStation(st)">
+            <span class="tube-line-dots">
+              <template x-for="ln in st.lines" :key="ln">
+                <span class="tube-line-dot" :style="'background:' + tubeLineColor(ln)"></span>
+              </template>
+            </span>
+            <span class="tube-station-name" x-text="st.name"></span>
+            <span class="tube-station-role-tag" x-show="tubeStationRole(st)"
+              x-text="tubeStationRole(st) === 'from' ? '출발' : '도착'"></span>
+          </button>
+        </template>
+        <template x-if="filteredTubeStations().length === 0">
+          <div class="empty" style="padding:20px;">검색 결과가 없어요.</div>
+        </template>
+      </div>
+      <div class="tube-hint">출발역 → 도착역 순으로 선택하면 TfL 경로와 소요시간이 표시돼요.</div>
+    </section>
+
   </main>
 
   <!-- ===== Bottom Sheet (매너 가이드) ===== -->
@@ -1256,6 +1339,7 @@
 
   <!-- 스크립트: app.js가 tripApp()를 먼저 정의 → Alpine 실행 -->
   <script src="/js/storage.js"></script>
+  <script src="/js/tube-stations.js"></script>
   <script src="/js/app.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
   <script src="/js/pwa.js"></script>
