@@ -208,7 +208,7 @@ ${JSON.stringify(context, null, 2)}
       },
       body: JSON.stringify({
         model: selectModel(),
-        max_tokens: taskType === 'itinerary' ? 4000 : (taskType === 'route_optimization' ? 2500 : 2000),
+        max_tokens: taskType === 'itinerary' ? 8000 : (taskType === 'route_optimization' ? 2500 : 2000),
         system: sysPrompt,
         tools: tools.length ? tools : undefined,
         messages: [{ role: 'user', content: query }]

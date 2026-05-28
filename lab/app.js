@@ -63,19 +63,51 @@ function butlerTrip() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: prompt, context: {}, taskType: 'itinerary', useWebSearch: false })
         });
-        const data = await res.json();
-        if (!data || !data.destination || !Array.isArray(data.days) || !data.days.length) {
-          throw new Error((data && data.error) || '일정 생성 실패');
+        let data;
+        try { data = await res.json(); }
+        catch { throw new Error('서버 응답 해석 실패 (HTTP ' + res.status + ')'); }
+
+        console.log('[Trip Butler] raw response:', data);
+
+        if (!res.ok) {
+          throw new Error((data && data.error) || '서버 오류 (HTTP ' + res.status + ')');
         }
-        this.plan = data;
+
+        // 1차: 정상 itinerary 형식
+        let plan = (data && data.destination && Array.isArray(data.days) && data.days.length) ? data : null;
+
+        // 2차 폴백: butler.js가 JSON 파싱 실패 시 원본을 data.answer에 담아 보냄 → 다시 추출 시도
+        if (!plan && data && typeof data.answer === 'string' && data.answer.length > 50) {
+          try {
+            const t = data.answer.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const s = t.indexOf('{'), e = t.lastIndexOf('}');
+            if (s >= 0 && e > s) {
+              const cand = JSON.parse(t.slice(s, e + 1));
+              if (cand && cand.destination && Array.isArray(cand.days) && cand.days.length) {
+                console.warn('[Trip Butler] 폴백 파싱 성공');
+                plan = cand;
+              }
+            }
+          } catch (parseErr) {
+            console.warn('[Trip Butler] 폴백 파싱도 실패', parseErr);
+          }
+        }
+
+        if (!plan) {
+          const hint = (data && data.error)
+            ? ` (서버: ${data.error})`
+            : ' — 일수를 줄이거나 다시 시도해 보세요. (콘솔 확인)';
+          throw new Error('AI가 일정 형식을 갖추지 못했어요.' + hint);
+        }
+
+        this.plan = plan;
         this.step = 'result';
         window.scrollTo(0, 0);
-        // 목적지 좌표·통화로 날씨/환율 자동 적응
-        this.fetchWeather(data.destination.lat, data.destination.lng);
-        this.fetchCurrency(data.destination.currency);
+        this.fetchWeather(plan.destination.lat, plan.destination.lng);
+        this.fetchCurrency(plan.destination.currency);
       } catch (e) {
-        console.error('itinerary 생성 실패', e);
-        this.error = '일정을 생성하지 못했어요. 도시명을 확인하고 다시 시도해 주세요.';
+        console.error('[Trip Butler] 일정 생성 실패', e);
+        this.error = (e && e.message) || '일정을 생성하지 못했어요. 다시 시도해 주세요.';
         this.step = 'setup';
       }
     },
