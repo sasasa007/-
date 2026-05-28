@@ -43,7 +43,7 @@ export default async (req) => {
   function selectModel() {
     if (taskType === 'route_optimization') return 'claude-sonnet-4-6';
     if (taskType === 'trip_advice') return 'claude-sonnet-4-6';  // 일반 프롬프트(answer 반환)지만 품질 위해 Sonnet
-    if (taskType === 'itinerary') return 'claude-sonnet-4-6';     // 전세계 일정 생성 (Trip Butler 프로토타입)
+    if (taskType === 'itinerary') return 'claude-haiku-4-5';      // 전세계 일정 생성: Netlify 10s 타임아웃 회피 위해 Haiku (Sonnet은 30s+ 걸려 504)
     if (useWebSearch) return 'claude-sonnet-4-6';
     return 'claude-haiku-4-5';
   }
@@ -208,7 +208,7 @@ ${JSON.stringify(context, null, 2)}
       },
       body: JSON.stringify({
         model: selectModel(),
-        max_tokens: taskType === 'itinerary' ? 8000 : (taskType === 'route_optimization' ? 2500 : 2000),
+        max_tokens: taskType === 'itinerary' ? 5000 : (taskType === 'route_optimization' ? 2500 : 2000),
         system: sysPrompt,
         tools: tools.length ? tools : undefined,
         messages: [{ role: 'user', content: query }]
