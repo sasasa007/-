@@ -1,34 +1,70 @@
-// Trip Butler (프로토타입) — 전세계 AI 여행 일정 생성 엔진
-// 런던 가족앱의 "엔진"을 도시 무관으로 일반화한 실험. /lab 경로에서만 동작.
+// Travel Butler — 전세계 AI 여행 일정 생성 엔진 (다국어: 한·영·일·중)
+// 런던 가족앱의 "엔진"을 도시·언어 무관으로 일반화. /lab 경로에서 동작.
 function butlerTrip() {
   return {
     // ---- 상태 ----
+    lang: 'ko',               // ko | en | ja | zh
     step: 'setup',            // setup | loading | result
     error: null,
     loadingMsg: '',
-    form: {
-      city: '',
-      startDate: '',
-      days: 3,
-      party: 'family',
-      interests: []
-    },
-    partyOptions: [
-      { id: 'family',  label: '👨‍👩‍👧 가족' },
-      { id: 'couple',  label: '💑 커플' },
-      { id: 'friends', label: '👥 친구' },
-      { id: 'solo',    label: '🧍 혼자' }
-    ],
-    interestOptions: ['역사·문화', '미식', '쇼핑', '자연·공원', '아이 체험', '야경·나이트', '예술·박물관', '휴양'],
-    exampleCities: ['도쿄', '파리', '뉴욕', '방콕', '로마', '바르셀로나'],
+    form: { city: '', startDate: '', days: 3, party: 'family', interests: [] },
 
-    plan: null,               // AI 결과 { destination, days, tips }
+    plan: null,
     weather:  { loaded: false, failed: false, tempC: '', desc: '', icon: '', humidity: '', wind: '' },
     currency: { loaded: false, failed: false, code: '', symbol: '', rate: 0, date: '' },
 
+    // ---- i18n 헬퍼 ----
+    t(key, ...args) {
+      const dict = (window.I18N && window.I18N[this.lang]) || {};
+      const v = dict[key];
+      return typeof v === 'function' ? v(...args) : (v != null ? v : key);
+    },
+    get L() { return (window.I18N && window.I18N[this.lang]) || {}; },
+    get langMeta() { return (window.LANGS && window.LANGS[this.lang]) || { locale: 'en-US', currency: 'USD' }; },
+
+    // 언어별 옵션 (사전에서 파생)
+    get partyOptions() {
+      const p = this.L.parties || {};
+      return [
+        { id: 'family',  label: p.family },
+        { id: 'couple',  label: p.couple },
+        { id: 'friends', label: p.friends },
+        { id: 'solo',    label: p.solo }
+      ];
+    },
+    get interestOptions() { return this.L.interests || []; },
+    get exampleCities() { return this.L.cities || []; },
+    get langList() {
+      return Object.keys(window.LANGS || {}).map(k => ({ id: k, label: window.LANGS[k].label }));
+    },
+
     // ---- 초기화 ----
     init() {
+      // 언어 결정: 저장값 → 브라우저 언어 → 기본 en
+      let saved = null;
+      try { saved = localStorage.getItem('tb_lang'); } catch (e) {}
+      const supported = Object.keys(window.LANGS || { ko:1, en:1, ja:1, zh:1 });
+      const nav = (navigator.language || 'en').slice(0, 2).toLowerCase();
+      this.lang = supported.includes(saved) ? saved
+                : supported.includes(nav) ? nav
+                : (supported.includes('en') ? 'en' : supported[0]);
+      this.applyLangAttrs();
       this.form.startDate = new Date().toISOString().slice(0, 10);
+    },
+    setLang(l) {
+      if (!window.LANGS[l]) return;
+      this.lang = l;
+      try { localStorage.setItem('tb_lang', l); } catch (e) {}
+      this.applyLangAttrs();
+      // 선택했던 관심사는 라벨이 언어마다 달라 초기화(인덱스 의미 보존 위해 비움)
+      this.form.interests = [];
+      // 이미 생성된 결과의 통화 표시를 새 언어 기준으로 갱신
+      if (this.plan && this.plan.destination) this.fetchCurrency(this.plan.destination.currency);
+    },
+    applyLangAttrs() {
+      const root = document.documentElement;
+      root.setAttribute('lang', this.lang);
+      root.setAttribute('data-lang', this.lang);   // CSS 폰트 분기용
     },
 
     // ---- 폼 헬퍼 ----
@@ -40,65 +76,52 @@ function butlerTrip() {
     },
     isInterest(i) { return this.form.interests.includes(i); },
 
-    // ---- 일정 생성 (Butler itinerary) ----
+    // ---- 일정 생성 ----
     async generate() {
-      if (!this.form.city.trim()) { this.error = '여행할 도시를 입력해 주세요.'; return; }
+      if (!this.form.city.trim()) { this.error = this.t('err_city'); return; }
       this.error = null;
       this.step = 'loading';
-      this.loadingMsg = `🎩 버틀러가 ${this.form.city.trim()} 일정을 설계하는 중…`;
+      this.loadingMsg = this.t('loading', this.form.city.trim());
       this.plan = null;
 
-      const partyLabel = (this.partyOptions.find(p => p.id === this.form.party) || {}).label || '가족';
-      const prompt = `도시: ${this.form.city.trim()}
+      const partyLabel = (this.partyOptions.find(p => p.id === this.form.party) || {}).label || '';
+      const outLang = (window.LANG_OUTPUT_NAME && window.LANG_OUTPUT_NAME[this.lang]) || 'English';
+      const prompt = `출력 언어(OUTPUT LANGUAGE): ${outLang}
+도시: ${this.form.city.trim()}
 여행 시작일: ${this.form.startDate || '미정'}
-여행 일수: ${this.form.days}일
+여행 일수: ${this.form.days}
 동행: ${partyLabel}
 관심사: ${this.form.interests.length ? this.form.interests.join(', ') : '일반 관광'}
 
-위 조건으로 ${this.form.days}일짜리 여행 일정을 설계해줘.`;
+위 조건으로 ${this.form.days}일짜리 여행 일정을 설계해줘. 모든 사용자 표시 텍스트는 ${outLang}로 작성.`;
 
       try {
         const res = await fetch('/.netlify/functions/butler', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: prompt, context: {}, taskType: 'itinerary', useWebSearch: false })
+          body: JSON.stringify({ query: prompt, context: {}, taskType: 'itinerary', useWebSearch: false, lang: this.lang })
         });
         let data;
         try { data = await res.json(); }
         catch { throw new Error('서버 응답 해석 실패 (HTTP ' + res.status + ')'); }
 
-        console.log('[Trip Butler] raw response:', data);
+        if (!res.ok) throw new Error((data && data.error) || '서버 오류 (HTTP ' + res.status + ')');
 
-        if (!res.ok) {
-          throw new Error((data && data.error) || '서버 오류 (HTTP ' + res.status + ')');
-        }
-
-        // 1차: 정상 itinerary 형식
         let plan = (data && data.destination && Array.isArray(data.days) && data.days.length) ? data : null;
 
-        // 2차 폴백: butler.js가 JSON 파싱 실패 시 원본을 data.answer에 담아 보냄 → 다시 추출 시도
+        // 폴백: answer 문자열에 JSON이 실려온 경우 재추출
         if (!plan && data && typeof data.answer === 'string' && data.answer.length > 50) {
           try {
-            const t = data.answer.replace(/```json/gi, '').replace(/```/g, '').trim();
-            const s = t.indexOf('{'), e = t.lastIndexOf('}');
+            const tt = data.answer.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const s = tt.indexOf('{'), e = tt.lastIndexOf('}');
             if (s >= 0 && e > s) {
-              const cand = JSON.parse(t.slice(s, e + 1));
-              if (cand && cand.destination && Array.isArray(cand.days) && cand.days.length) {
-                console.warn('[Trip Butler] 폴백 파싱 성공');
-                plan = cand;
-              }
+              const cand = JSON.parse(tt.slice(s, e + 1));
+              if (cand && cand.destination && Array.isArray(cand.days) && cand.days.length) plan = cand;
             }
-          } catch (parseErr) {
-            console.warn('[Trip Butler] 폴백 파싱도 실패', parseErr);
-          }
+          } catch (_) {}
         }
 
-        if (!plan) {
-          const hint = (data && data.error)
-            ? ` (서버: ${data.error})`
-            : ' — 일수를 줄이거나 다시 시도해 보세요. (콘솔 확인)';
-          throw new Error('AI가 일정 형식을 갖추지 못했어요.' + hint);
-        }
+        if (!plan) throw new Error(this.t('err_format'));
 
         this.plan = plan;
         this.step = 'result';
@@ -106,13 +129,13 @@ function butlerTrip() {
         this.fetchWeather(plan.destination.lat, plan.destination.lng);
         this.fetchCurrency(plan.destination.currency);
       } catch (e) {
-        console.error('[Trip Butler] 일정 생성 실패', e);
-        this.error = (e && e.message) || '일정을 생성하지 못했어요. 다시 시도해 주세요.';
+        console.error('[Travel Butler] 일정 생성 실패', e);
+        this.error = (e && e.message) || this.t('err_generic');
         this.step = 'setup';
       }
     },
 
-    // ---- 적응형 날씨 (Open-Meteo, 키 불필요) ----
+    // ---- 적응형 날씨 (Open-Meteo) ----
     async fetchWeather(lat, lng) {
       this.weather = { loaded: false, failed: false, tempC: '', desc: '', icon: '', humidity: '', wind: '' };
       if (typeof lat !== 'number' || typeof lng !== 'number') { this.weather.failed = true; return; }
@@ -125,79 +148,89 @@ function butlerTrip() {
         const wm = this._wmo(c.weather_code);
         this.weather = {
           loaded: true, failed: false,
-          tempC: Math.round(c.temperature_2m),
-          desc: wm.desc, icon: wm.icon,
-          humidity: c.relative_humidity_2m,
-          wind: Math.round(c.wind_speed_10m)
+          tempC: Math.round(c.temperature_2m), desc: wm.desc, icon: wm.icon,
+          humidity: c.relative_humidity_2m, wind: Math.round(c.wind_speed_10m)
         };
       } catch {
         this.weather = { loaded: false, failed: true, tempC: '', desc: '', icon: '', humidity: '', wind: '' };
       }
     },
 
-    // ---- 적응형 환율 (frankfurter.dev → KRW) ----
-    async fetchCurrency(code) {
-      this.currency = { loaded: false, failed: false, code: code || '', symbol: '', rate: 0, date: '' };
-      const symbol = (this.plan && this.plan.destination && this.plan.destination.currencySymbol) || code || '';
-      if (!code || code === 'KRW') {
-        this.currency = { loaded: true, failed: false, code: 'KRW', symbol: '₩', rate: 1, date: '' };
+    // ---- 적응형 환율 (frankfurter.dev → 사용자 언어 기본통화) ----
+    async fetchCurrency(srcCode) {
+      const home = this.langMeta.currency || 'USD';
+      this.currency = { loaded: false, failed: false, code: srcCode || '', symbol: '', rate: 0, date: '', home };
+      const symbol = (this.plan && this.plan.destination && this.plan.destination.currencySymbol) || srcCode || '';
+      if (!srcCode || srcCode === home) {
+        this.currency = { loaded: true, failed: false, code: home, symbol: this.homeSymbol(home), rate: 1, date: '', home, same: true };
         return;
       }
       try {
-        const r = await fetch(`https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(code)}&symbols=KRW`);
+        const r = await fetch(`https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(srcCode)}&symbols=${home}`);
         const d = await r.json();
-        const rate = d.rates && d.rates.KRW;
+        const rate = d.rates && d.rates[home];
         if (!rate) throw new Error('지원되지 않는 통화');
-        this.currency = { loaded: true, failed: false, code, symbol, rate, date: d.date || '' };
+        this.currency = { loaded: true, failed: false, code: srcCode, symbol, rate, date: d.date || '', home, same: false };
       } catch {
-        this.currency = { loaded: false, failed: true, code, symbol, rate: 0, date: '' };
+        this.currency = { loaded: false, failed: true, code: srcCode, symbol, rate: 0, date: '', home };
       }
     },
+    homeSymbol(code) { return ({ KRW:'₩', JPY:'¥', CNY:'¥', USD:'$', EUR:'€', GBP:'£' })[code] || code; },
+    // 1 현지통화 = ? 홈통화  (결과 화면 환율 칩 표시용)
+    rateText() {
+      const c = this.currency;
+      if (!c.loaded || c.same) return '';
+      const homeSym = this.homeSymbol(c.home);
+      const amount = c.rate >= 100 ? Math.round(c.rate).toLocaleString(this.langMeta.locale)
+                                   : c.rate.toFixed(2);
+      return `${c.symbol}1 = ${homeSym}${amount}`;
+    },
 
-    // WMO 날씨코드 → 이모지/설명
+    // WMO 날씨코드 → 이모지/설명 (언어별)
     _wmo(code) {
-      const m = {
-        0: ['☀️', '맑음'], 1: ['🌤️', '대체로 맑음'], 2: ['⛅', '구름 조금'], 3: ['☁️', '흐림'],
-        45: ['🌫️', '안개'], 48: ['🌫️', '서리 안개'],
-        51: ['🌦️', '약한 이슬비'], 53: ['🌦️', '이슬비'], 55: ['🌧️', '강한 이슬비'],
-        61: ['🌧️', '약한 비'], 63: ['🌧️', '비'], 65: ['🌧️', '강한 비'],
-        71: ['🌨️', '약한 눈'], 73: ['🌨️', '눈'], 75: ['❄️', '강한 눈'], 77: ['🌨️', '싸락눈'],
-        80: ['🌦️', '소나기'], 81: ['🌧️', '소나기'], 82: ['⛈️', '강한 소나기'],
-        85: ['🌨️', '소낙눈'], 86: ['❄️', '강한 소낙눈'],
-        95: ['⛈️', '뇌우'], 96: ['⛈️', '우박 뇌우'], 99: ['⛈️', '강한 뇌우']
+      const desc = {
+        ko:{0:'맑음',1:'대체로 맑음',2:'구름 조금',3:'흐림',45:'안개',48:'서리 안개',51:'약한 이슬비',53:'이슬비',55:'강한 이슬비',61:'약한 비',63:'비',65:'강한 비',71:'약한 눈',73:'눈',75:'강한 눈',80:'소나기',81:'소나기',82:'강한 소나기',95:'뇌우',96:'우박 뇌우',99:'강한 뇌우'},
+        en:{0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Hail storm',99:'Severe storm'},
+        ja:{0:'快晴',1:'晴れ',2:'薄曇り',3:'曇り',45:'霧',48:'霧氷',51:'弱い霧雨',53:'霧雨',55:'強い霧雨',61:'弱い雨',63:'雨',65:'強い雨',71:'弱い雪',73:'雪',75:'強い雪',80:'にわか雨',81:'にわか雨',82:'激しいにわか雨',95:'雷雨',96:'雹を伴う雷雨',99:'激しい雷雨'},
+        zh:{0:'晴',1:'大致晴朗',2:'局部多云',3:'阴',45:'雾',48:'雾凇',51:'小毛毛雨',53:'毛毛雨',55:'大毛毛雨',61:'小雨',63:'雨',65:'大雨',71:'小雪',73:'雪',75:'大雪',80:'阵雨',81:'阵雨',82:'强阵雨',95:'雷雨',96:'冰雹雷雨',99:'强雷暴'}
       };
-      const e = m[code] || ['🌡️', '—'];
-      return { icon: e[0], desc: e[1] };
+      const icon = {0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',51:'🌦️',53:'🌦️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',71:'🌨️',73:'🌨️',75:'❄️',77:'🌨️',80:'🌦️',81:'🌧️',82:'⛈️',85:'🌨️',86:'❄️',95:'⛈️',96:'⛈️',99:'⛈️'};
+      const dd = (desc[this.lang] || desc.en);
+      return { icon: icon[code] || '🌡️', desc: dd[code] || '—' };
     },
 
     // ---- 렌더 헬퍼 ----
     typeEmoji(t) {
-      return { attraction: '🏛️', restaurant: '🍽️', cafe: '☕', shop: '🛍️', park: '🌳', nightlife: '🌃', experience: '🎟️' }[t] || '📍';
+      return { attraction:'🏛️', restaurant:'🍽️', cafe:'☕', shop:'🛍️', park:'🌳', nightlife:'🌃', experience:'🎟️' }[t] || '📍';
     },
     typeLabel(t) {
-      return { attraction: '명소', restaurant: '식당', cafe: '카페', shop: '쇼핑', park: '공원', nightlife: '나이트', experience: '체험' }[t] || '장소';
+      const ty = this.L.types || {};
+      return ty[t] || t || '';
+    },
+    placeTitle(a) { return a.nameLocal || a.nameKo || a.name || ''; },
+    placeSub(a)   { return a.name || a.nameOriginal || ''; },
+    cityTitle()   { return this.plan ? (this.plan.destination.cityLocal || this.plan.destination.cityKo || this.plan.destination.city) : ''; },
+    cityCountry() {
+      if (!this.plan) return '';
+      const d = this.plan.destination;
+      return (d.city || '') + ' · ' + (d.countryLocal || d.countryKo || d.country || '');
     },
     mapLink(a) {
-      const city = (this.plan && this.plan.destination) ? this.plan.destination.city : '';
-      const q = encodeURIComponent((a.nameKo || a.name || '') + ' ' + city);
+      const city = this.plan ? (this.plan.destination.city || '') : '';
+      const q = encodeURIComponent((a.name || a.nameLocal || a.nameKo || '') + ' ' + city);
       return `https://www.google.com/maps/search/?api=1&query=${q}`;
     },
     dateForDay(n) {
       if (!this.form.startDate) return '';
       const d = new Date(this.form.startDate + 'T00:00:00');
       d.setDate(d.getDate() + (n - 1));
-      const wd = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
-      return `${d.getMonth() + 1}/${d.getDate()} (${wd})`;
-    },
-    krwOf(amount) {
-      if (!this.currency.loaded || !this.currency.rate) return '';
-      return '₩' + Math.round(amount * this.currency.rate).toLocaleString();
+      try {
+        return new Intl.DateTimeFormat(this.langMeta.locale, { month: 'short', day: 'numeric', weekday: 'short' }).format(d);
+      } catch {
+        return (d.getMonth() + 1) + '/' + d.getDate();
+      }
     },
 
-    reset() {
-      this.step = 'setup';
-      this.plan = null;
-      this.error = null;
-    }
+    reset() { this.step = 'setup'; this.plan = null; this.error = null; }
   };
 }
