@@ -48,14 +48,25 @@
 > ⚠️ 위 변경은 node 문법검증까지만 됨. **실제 Claude API 호출로 생성 품질·다국어·환각을 검증하지 못함**(Cowork 환경 제약). Claude Code가 `netlify dev`로 띄워 한·영·일·중 각각 도쿄/파리 생성 → 결과 확인 필요.
 
 ## 6. 즉시 다음 티켓 (우선순위)
-1. **[검증·배포]** Sprint1~3 변경을 로컬에서 띄워 4개 언어 생성 테스트. 환각(특히 식당)·언어 일관성·통화/날짜 로케일·언어 스위처 확인 → 문제 없으면 커밋·푸시.
-2. **[B4 영속화] (Phase 1 핵심)** 생성 결과를 Firebase에 저장→재접속 시 캐시 로드(재생성 차단). **선행: Travel Butler 전용 Firebase 프로젝트 생성**(사용자 콘솔 작업) + Auth 준비. 데이터 모델은 처음부터 다중여행 구조 `/users/{uid}/trips/{tripId}/...` (Phase 2와 묶어 설계).
-3. **[언어 전환 시 재생성 UX]** 현재 언어 변경은 UI만 즉시 갱신, 기존 일정 내용은 유지. "이 언어로 다시 생성" 버튼 여부 결정(캐싱 설계와 연동) — PM과 합의.
+> Sprint 1~3(환각방지+웜프리미엄+다국어)는 **배포 완료**(라이브 반영 확인). 아래가 잔여.
 
-## 7. 백로그 / 상세 문서 (워크스페이스, PM 관리)
-- `Travel_Butler_마스터플랜.md` — 6개 작업영역·Phase 로드맵·비용·리스크
-- `Travel_Butler_Phase1-2_백로그.md` — 에픽 A~F, 30개 티켓, 의존성·완료기준
-- `design-directions.html` — 디자인 4종 비교(1번 채택)
+1. **[T2 후속 커밋·소]** butler.js itinerary 프롬프트에 고유명사 원칙 1줄 추가 + 파싱 후 좌표 범위 sanity check(범위밖/0,0/누락→null). 커밋 `fix(lab): 고유명사 정책 + 좌표 sanity check`. (정책 근거: §5 메모/PM)
+2. **[T3 상업 셸] (Phase 1 마무리 핵심)** 스펙 `Travel_Butler_Commercial_Shell_Spec.md`대로 구현:
+   - 로고 에셋 적용(`icons/` — manifest·favicon·헤더 마크·다크 swap, 워드마크는 Fraunces 텍스트)
+   - 인트로(첫 실행)·빈 상태, 설정 메뉴(언어·통화·온도°C/°F·테마 다크·정보·약관링크·피드백·초기화)
+   - 온도단위/통화 override + 다크 팔레트(스펙 §4~5)
+   - 법무 페이지: `Travel_Butler_Legal_Draft.md` 초안을 `/legal/privacy`·`/legal/terms` 정적 페이지로(공개 URL → Play 제출용). **전문가 검수 전 게시 주의.**
+3. **[T4 B4 영속화]** 스펙 `Travel_Butler_B4_영속화_스펙.md`. 선행: 에드워드가 Firebase 새 프로젝트 생성(스펙 §2) → 익명 인증 + Firestore 저장/캐싱.
+4. **[T5 언어 전환 재생성 UX]** 언어 변경 시 기존 일정 재생성 여부(버튼). 캐싱과 연동, B4 후. PM과 합의.
+
+## 7. 백로그 / 상세 문서 (Cowork 워크스페이스 루트 `…\AI 여행 어플 제작하기\`, PM 관리)
+- `Travel_Butler_마스터플랜.md` — 6작업영역·로드맵·비용·리스크
+- `Travel_Butler_Phase1-2_백로그.md` — 에픽 A~F 티켓
+- `Travel_Butler_Commercial_Gap_Audit.md` — 상업화 갭 감사(Phase1 재정의)
+- `Travel_Butler_Commercial_Shell_Spec.md` — **T3 구현 스펙**(설정·인트로·테마·로고적용)
+- `Travel_Butler_Legal_Draft.md` — 개인정보처리방침·이용약관 초안(전문가 검수 전제)
+- `Travel_Butler_B4_영속화_스펙.md` — **T4 구현 스펙**(Firebase)
+- 아이콘 에셋: `london-app/icons/travel-butler-*.svg` + `icon-*.png`
 
 ## 8. 작업 규칙
 - 변경은 **티켓 단위 작은 커밋**. 커밋 메시지에 티켓 ID(B4 등) 표기.

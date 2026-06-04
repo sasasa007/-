@@ -1,17 +1,34 @@
 // Travel Butler — 전세계 AI 여행 일정 생성 엔진 (다국어: 한·영·일·중)
 // 런던 가족앱의 "엔진"을 도시·언어 무관으로 일반화. /lab 경로에서 동작.
+window.APP_VERSION = '0.3.0-shell';   // T3 상업 셸 적용
+
 function butlerTrip() {
   return {
     // ---- 상태 ----
     lang: 'ko',               // ko | en | ja | zh
-    step: 'setup',            // setup | loading | result
+    step: 'setup',            // setup | loading | result | settings
+    prevStep: 'setup',        // 설정 닫으면 돌아갈 화면
     error: null,
     loadingMsg: '',
     form: { city: '', startDate: '', days: 3, party: 'family', interests: [] },
 
+    // 사용자 설정 (T3)
+    theme: 'system',          // light | dark | system
+    unitTemp: 'c',            // c | f
+    currencyOverride: null,   // null = 언어 자동, 그 외는 통화 코드(KRW/USD/JPY...)
+
+    // 인트로 (첫 실행)
+    showIntro: false,
+    introIdx: 0,
+
+    // 사이드 안내 (초기화 후 등)
+    flashMsg: '',
+
     plan: null,
     weather:  { loaded: false, failed: false, tempC: '', desc: '', icon: '', humidity: '', wind: '' },
     currency: { loaded: false, failed: false, code: '', symbol: '', rate: 0, date: '' },
+
+    _systemThemeMql: null,
 
     // ---- i18n 헬퍼 ----
     t(key, ...args) {
@@ -21,6 +38,7 @@ function butlerTrip() {
     },
     get L() { return (window.I18N && window.I18N[this.lang]) || {}; },
     get langMeta() { return (window.LANGS && window.LANGS[this.lang]) || { locale: 'en-US', currency: 'USD' }; },
+    get currencyOptions() { return window.CURRENCY_OPTIONS || []; },
 
     // 언어별 옵션 (사전에서 파생)
     get partyOptions() {
@@ -40,31 +58,136 @@ function butlerTrip() {
 
     // ---- 초기화 ----
     init() {
-      // 언어 결정: 저장값 → 브라우저 언어 → 기본 en
-      let saved = null;
-      try { saved = localStorage.getItem('tb_lang'); } catch (e) {}
+      // 저장값 로드 (각각 try/catch — Safari private 등에서 throw 방지)
+      let saved = {};
+      try {
+        saved = {
+          lang:     localStorage.getItem('tb_lang'),
+          theme:    localStorage.getItem('tb_theme'),
+          unitTemp: localStorage.getItem('tb_unit_temp'),
+          currency: localStorage.getItem('tb_currency'),
+          seenIntro: localStorage.getItem('tb_seen_intro')
+        };
+      } catch (e) {}
+
+      // 언어
       const supported = Object.keys(window.LANGS || { ko:1, en:1, ja:1, zh:1 });
       const nav = (navigator.language || 'en').slice(0, 2).toLowerCase();
-      this.lang = supported.includes(saved) ? saved
+      this.lang = supported.includes(saved.lang) ? saved.lang
                 : supported.includes(nav) ? nav
                 : (supported.includes('en') ? 'en' : supported[0]);
       this.applyLangAttrs();
+
+      // 테마
+      this.theme = ['light', 'dark', 'system'].includes(saved.theme) ? saved.theme : 'system';
+      this.applyTheme();
+      // system 모드 추종을 위해 prefers-color-scheme 변경 구독
+      if (window.matchMedia) {
+        this._systemThemeMql = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = () => { if (this.theme === 'system') this.applyTheme(); };
+        if (this._systemThemeMql.addEventListener) this._systemThemeMql.addEventListener('change', handler);
+        else if (this._systemThemeMql.addListener)  this._systemThemeMql.addListener(handler);
+      }
+
+      // 온도 단위
+      this.unitTemp = saved.unitTemp === 'f' ? 'f' : 'c';
+
+      // 통화 오버라이드
+      if (saved.currency && (window.CURRENCY_OPTIONS || []).includes(saved.currency)) {
+        this.currencyOverride = saved.currency;
+      }
+
+      // 인트로
+      if (!saved.seenIntro) this.showIntro = true;
+
+      // 초기 날짜
       this.form.startDate = new Date().toISOString().slice(0, 10);
     },
+
+    // ---- 언어/테마 적용 ----
     setLang(l) {
       if (!window.LANGS[l]) return;
       this.lang = l;
       try { localStorage.setItem('tb_lang', l); } catch (e) {}
       this.applyLangAttrs();
-      // 선택했던 관심사는 라벨이 언어마다 달라 초기화(인덱스 의미 보존 위해 비움)
       this.form.interests = [];
-      // 이미 생성된 결과의 통화 표시를 새 언어 기준으로 갱신
       if (this.plan && this.plan.destination) this.fetchCurrency(this.plan.destination.currency);
     },
     applyLangAttrs() {
       const root = document.documentElement;
       root.setAttribute('lang', this.lang);
-      root.setAttribute('data-lang', this.lang);   // CSS 폰트 분기용
+      root.setAttribute('data-lang', this.lang);
+    },
+    setTheme(t) {
+      if (!['light','dark','system'].includes(t)) return;
+      this.theme = t;
+      try { localStorage.setItem('tb_theme', t); } catch (e) {}
+      this.applyTheme();
+    },
+    applyTheme() {
+      const root = document.documentElement;
+      let effective = this.theme;
+      if (effective === 'system') {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        effective = prefersDark ? 'dark' : 'light';
+      }
+      root.setAttribute('data-theme', effective);
+      // meta theme-color도 함께 갱신 (모바일 OS 컬러 매칭)
+      const mt = document.querySelector('meta[name="theme-color"]');
+      if (mt) mt.setAttribute('content', effective === 'dark' ? '#1C1916' : '#FAF6F0');
+    },
+
+    // ---- 설정/통화/온도 ----
+    openSettings() {
+      if (this.step !== 'settings') this.prevStep = this.step;
+      this.step = 'settings';
+      window.scrollTo(0, 0);
+    },
+    closeSettings() {
+      this.step = this.prevStep || 'setup';
+      window.scrollTo(0, 0);
+    },
+    setUnitTemp(u) {
+      if (!['c','f'].includes(u)) return;
+      this.unitTemp = u;
+      try { localStorage.setItem('tb_unit_temp', u); } catch (e) {}
+    },
+    setCurrencyOverride(code) {
+      // code === '' or null → 자동(언어 기본통화)
+      this.currencyOverride = code || null;
+      try {
+        if (code) localStorage.setItem('tb_currency', code);
+        else localStorage.removeItem('tb_currency');
+      } catch (e) {}
+      if (this.plan && this.plan.destination) this.fetchCurrency(this.plan.destination.currency);
+    },
+    tempDisplay() {
+      if (!this.weather.loaded) return '';
+      const c = this.weather.tempC;
+      if (this.unitTemp === 'f') return Math.round(c * 9/5 + 32) + '°F';
+      return c + '°C';
+    },
+
+    // ---- 인트로 ----
+    nextIntro() {
+      if (this.introIdx < 2) this.introIdx += 1;
+      else this.finishIntro();
+    },
+    finishIntro() {
+      this.showIntro = false;
+      try { localStorage.setItem('tb_seen_intro', '1'); } catch (e) {}
+    },
+
+    // ---- 초기화 ----
+    resetData() {
+      const msg = this.t('set_reset_confirm');
+      if (!window.confirm(msg)) return;
+      try {
+        ['tb_lang','tb_theme','tb_unit_temp','tb_currency','tb_seen_intro'].forEach(k => localStorage.removeItem(k));
+      } catch (e) {}
+      this.flashMsg = this.t('set_reset_done');
+      // 부드럽게 새로고침 — 모든 상태가 재초기화되도록
+      setTimeout(() => { location.reload(); }, 500);
     },
 
     // ---- 폼 헬퍼 ----
@@ -156,9 +279,10 @@ function butlerTrip() {
       }
     },
 
-    // ---- 적응형 환율 (frankfurter.dev → 사용자 언어 기본통화) ----
+    // ---- 적응형 환율 (frankfurter.dev → 사용자 home 통화) ----
+    // home 통화 = currencyOverride(설정값) ?? langMeta.currency(언어 기본값)
     async fetchCurrency(srcCode) {
-      const home = this.langMeta.currency || 'USD';
+      const home = this.currencyOverride || this.langMeta.currency || 'USD';
       this.currency = { loaded: false, failed: false, code: srcCode || '', symbol: '', rate: 0, date: '', home };
       const symbol = (this.plan && this.plan.destination && this.plan.destination.currencySymbol) || srcCode || '';
       if (!srcCode || srcCode === home) {
@@ -175,8 +299,7 @@ function butlerTrip() {
         this.currency = { loaded: false, failed: true, code: srcCode, symbol, rate: 0, date: '', home };
       }
     },
-    homeSymbol(code) { return ({ KRW:'₩', JPY:'¥', CNY:'¥', USD:'$', EUR:'€', GBP:'£' })[code] || code; },
-    // 1 현지통화 = ? 홈통화  (결과 화면 환율 칩 표시용)
+    homeSymbol(code) { return ({ KRW:'₩', JPY:'¥', CNY:'¥', USD:'$', EUR:'€', GBP:'£', THB:'฿', AUD:'A$', CAD:'C$', SGD:'S$', HKD:'HK$', TWD:'NT$' })[code] || code; },
     rateText() {
       const c = this.currency;
       if (!c.loaded || c.same) return '';
@@ -231,6 +354,19 @@ function butlerTrip() {
       }
     },
 
-    reset() { this.step = 'setup'; this.plan = null; this.error = null; }
+    // 피드백 mailto (스펙: feedback 이메일 — 사용자 회신)
+    feedbackHref() {
+      const subj = encodeURIComponent('[Travel Butler] Feedback');
+      const body = encodeURIComponent('App version: ' + (window.APP_VERSION || '?') + '\nLang: ' + this.lang + '\n\n');
+      return `mailto:edward.sjhwang@gmail.com?subject=${subj}&body=${body}`;
+    },
+
+    reset() {
+      this.step = 'setup';
+      this.plan = null;
+      this.error = null;
+      this.weather = { loaded: false, failed: false, tempC: '', desc: '', icon: '', humidity: '', wind: '' };
+      this.currency = { loaded: false, failed: false, code: '', symbol: '', rate: 0, date: '' };
+    }
   };
 }

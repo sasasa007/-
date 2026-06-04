@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Travel Butler · 개인정보처리방침 (초안)</title>
+  <meta name="description" content="Travel Butler 개인정보처리방침 초안 — 법률 전문가 검수 전 비공개 임시 페이지." />
+  <!-- 임시·비공개: 검색엔진 인덱싱 및 외부 캐시 금지 -->
+  <meta name="robots" content="noindex, nofollow, noarchive, nocache, nosnippet, noimageindex" />
+  <meta name="googlebot" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Noto+Serif+KR:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" as="style" crossorigin
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <style>
+    :root{ --cream:#FAF6F0; --card:#fff; --ink:#2B2724; --muted:#6E655C; --faint:#A99C8D;
+      --line:#EFE7DA; --terra:#C7613F; --terra-soft:#F6EAE2; --terra-deep:#A84E30;
+      --serif:'Fraunces','Noto Serif KR',serif;
+      --sans:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif;
+    }
+    html[data-theme="dark"]{ --cream:#1C1916; --card:#262019; --ink:#F3ECE2; --muted:#B8AC9D; --faint:#857B6E; --line:#33291F; --terra:#E08862; --terra-soft:#3A2A22; --terra-deep:#C7613F;}
+    *{box-sizing:border-box;} html,body{margin:0;}
+    body{font-family:var(--sans); background:var(--cream); color:var(--ink); line-height:1.65; -webkit-font-smoothing:antialiased;}
+    .wrap{max-width:680px; margin:0 auto; padding:18px 22px 60px;}
+    .nav{padding:8px 0 16px; display:flex; align-items:center; gap:6px;}
+    .nav a{color:var(--terra); text-decoration:none; font-size:14px; padding:6px 10px; border-radius:8px;}
+    .nav a:hover{background:var(--terra-soft);}
+    .stamp{margin:10px 0 22px; padding:14px 18px; background:var(--terra-soft); color:var(--terra-deep); border-left:4px solid var(--terra); border-radius:10px;}
+    .stamp .t{font-family:var(--serif); font-style:italic; font-weight:600; font-size:14px;}
+    .stamp .d{font-size:13px; margin-top:4px; line-height:1.6;}
+    h1{font-family:var(--serif); font-weight:600; font-size:30px; letter-spacing:-0.01em; margin:8px 0 2px;}
+    .meta{font-size:12px; color:var(--faint);}
+    h2{font-family:var(--serif); font-weight:600; font-size:21px; margin:34px 0 8px; letter-spacing:-0.01em;}
+    h3{font-family:var(--serif); font-weight:500; font-size:16px; margin:20px 0 6px;}
+    p, li{font-size:14.5px; color:var(--ink);}
+    p{margin:8px 0;} ul{padding-left:22px;} li{margin:4px 0;}
+    .ph{color:var(--terra-deep); background:var(--terra-soft); padding:0 4px; border-radius:3px;}
+    table{width:100%; border-collapse:collapse; margin:12px 0; font-size:13.5px;}
+    th, td{padding:9px 11px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top;}
+    th{font-family:var(--serif); font-weight:500; color:var(--muted); background:var(--terra-soft);}
+    a.ref{color:var(--terra);}
+  </style>
+  <script>
+    // 사용자가 lab에서 적용한 테마 따라가기
+    try{ var th=localStorage.getItem('tb_theme'); if(th==='dark') document.documentElement.setAttribute('data-theme','dark');
+      else if(th==='system'){ if(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme','dark'); } }catch(e){}
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="nav"><a href="/lab/">‹ Travel Butler</a> · <a href="/lab/legal/terms.html">이용약관</a></div>
+
+    <div class="stamp">
+      <div class="t">⚠️ 전문가 검수 전 — 임시 비공개 초안</div>
+      <div class="d">본 문서는 PM이 앱의 실제 데이터 흐름을 바탕으로 작성한 <strong>초안 템플릿</strong>입니다. 법률 자문이 아니며, 시행·게시 전 반드시 <strong>자격 있는 법률 전문가의 검수</strong>를 받아야 합니다. 대괄호 <span class="ph">[항목]</span>은 실제 값으로 교체 필요. 검색엔진 인덱싱은 차단(noindex)되어 있습니다.</div>
+    </div>
+
+    <h1>개인정보처리방침 (Privacy Policy)</h1>
+    <div class="meta">서비스명: Travel Butler · 운영자: <span class="ph">[운영자/회사명]</span> · 게시일/시행일: <span class="ph">[게시일]</span></div>
+
+    <h2>1.1 수집하는 정보</h2>
+    <ul>
+      <li><strong>계정 식별자</strong>: 앱은 가입 없이 <strong>익명 인증</strong>으로 시작하며, 무작위 익명 식별자(ID)를 생성합니다. 이름·이메일 등 개인식별정보를 요구하지 않습니다.</li>
+      <li><strong>선택적 로그인 정보</strong>(이용자가 직접 선택 시): 구글 계정으로 로그인하면 이메일·표시 이름·프로필 식별자를 받아 기기 간 동기화·여행 공유에 사용합니다.</li>
+      <li><strong>여행 데이터</strong>: 이용자가 입력한 목적지 도시, 여행 날짜, 동행 구성, 관심사 및 그로부터 생성된 여행 일정.</li>
+      <li><strong>환경설정</strong>: 언어, 표시 통화, 온도 단위, 테마 등.</li>
+      <li><strong>이용 정보</strong>(도입 시): 앱 개선을 위한 익명·집계 형태의 사용 통계(프라이버시 우선 도구 사용, 개인 식별 안 함).</li>
+      <li><strong>위치 정보</strong>: 기본 기능은 단말 위치를 수집하지 않습니다. 향후 "주변 장소" 기능 도입 시, 이용자가 권한을 허용한 경우에 한해 사용합니다.</li>
+    </ul>
+
+    <h2>1.2 이용 목적</h2>
+    <p>여행 일정 생성·저장·표시, 환율/날씨 등 부가정보 제공, 환경설정 유지, 서비스 개선 및 오류 대응.</p>
+
+    <h2>1.3 제3자 처리·위탁 (데이터가 전달되는 외부 서비스)</h2>
+    <table>
+      <thead><tr><th>처리자</th><th>전달 정보</th><th>목적</th></tr></thead>
+      <tbody>
+        <tr><td>Anthropic (Claude API)</td><td>입력 조건(도시·날짜·동행·관심사·언어)</td><td>AI 여행 일정 생성. 개인 식별정보는 전송하지 않음</td></tr>
+        <tr><td>Google Firebase (Authentication, Firestore)</td><td>익명/로그인 식별자, 여행 데이터, 설정</td><td>인증 및 데이터 저장</td></tr>
+        <tr><td>Netlify</td><td>요청 처리</td><td>호스팅·서버리스 함수</td></tr>
+        <tr><td>Open-Meteo</td><td>목적지 좌표(이용자 위치 아님)</td><td>날씨 정보</td></tr>
+        <tr><td>Frankfurter</td><td>통화 코드</td><td>환율 정보</td></tr>
+        <tr><td>Google Maps</td><td>(링크 클릭 시) 장소·도시명</td><td>지도 보기(클릭 시 구글로 이동, 구글 정책 적용)</td></tr>
+      </tbody>
+    </table>
+    <p>각 처리자는 자체 개인정보 정책을 따릅니다. 본 서비스는 위 목적에 필요한 최소 정보만 전달합니다.</p>
+
+    <h2>1.4 보관 및 삭제</h2>
+    <ul>
+      <li>여행 데이터·설정은 이용자가 <strong>데이터 초기화</strong> 또는 계정 삭제로 언제든 삭제할 수 있습니다.</li>
+      <li>익명 데이터는 식별자에 연결되어 보관되며, 삭제 요청 시 합리적 기간 내 파기합니다.</li>
+      <li>법령상 보관 의무가 있는 경우 해당 기간 동안 보관할 수 있습니다.</li>
+    </ul>
+
+    <h2>1.5 이용자 권리</h2>
+    <p>열람·정정·삭제·처리정지를 요청할 수 있습니다. 요청: <span class="ph">[연락처 이메일]</span>. (관할 법률에 따른 권리—예: GDPR 접근/이동/삭제권—를 보장합니다.)</p>
+
+    <h2>1.6 아동</h2>
+    <p>본 서비스는 <strong>성인(여행 계획자)을 대상</strong>으로 하며, 만 14세 미만 아동을 대상으로 하지 않고 그 개인정보를 고의로 수집하지 않습니다. (한국 개인정보보호법 기준. 타 관할은 해당 연령 기준 적용.) 아동 정보가 수집된 사실을 알게 되면 지체 없이 삭제합니다.</p>
+
+    <h2>1.7 보안</h2>
+    <p>전송 구간 암호화(HTTPS)와 접근 통제(인증된 본인만 자신의 데이터 접근)를 적용합니다. 다만 인터넷 전송의 절대적 안전은 보장할 수 없습니다.</p>
+
+    <h2>1.8 변경 고지·문의</h2>
+    <p>방침 변경 시 앱 내 또는 본 페이지에 고지합니다. 문의: <span class="ph">[연락처 이메일]</span>. 개인정보 보호책임자: <span class="ph">[담당자/직책]</span>.</p>
+
+    <div class="nav" style="margin-top:40px;"><a href="/lab/">‹ Travel Butler</a> · <a href="/lab/legal/terms.html">이용약관 ›</a></div>
+  </div>
+</body>
+</html>

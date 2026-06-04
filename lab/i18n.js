@@ -10,6 +10,9 @@ window.LANGS = {
 // AI에게 "이 언어로 출력하라"고 지시할 때 쓰는 이름
 window.LANG_OUTPUT_NAME = { ko: '한국어', en: 'English', ja: '日本語', zh: '简体中文' };
 
+// 설정 → 통화 오버라이드 선택지 (코드, 표시 라벨은 코드 그대로)
+window.CURRENCY_OPTIONS = ['KRW', 'USD', 'JPY', 'CNY', 'EUR', 'GBP', 'THB', 'AUD', 'CAD', 'SGD', 'HKD', 'TWD'];
+
 window.I18N = {
   ko: {
     kicker: 'AI 여행 동반자',
@@ -27,6 +30,7 @@ window.I18N = {
     err_city: '여행할 도시를 입력해 주세요.',
     err_format: 'AI가 일정 형식을 갖추지 못했어요. 다시 시도해 주세요.',
     err_generic: '일정을 생성하지 못했어요. 다시 시도해 주세요.',
+    err_retry: '다시 시도',
     weather_now: '현재 날씨', humidity: '습도', no_info: '정보 없음', loading_short: '불러오는 중…',
     currency_label: '환율', local_currency: '현지 통화 사용',
     day: 'Day', butler_tips: '버틀러의 팁',
@@ -36,7 +40,26 @@ window.I18N = {
     parties: { family: '👨‍👩‍👧 가족', couple: '💑 커플', friends: '👥 친구', solo: '🧍 혼자' },
     interests: ['역사·문화','미식','쇼핑','자연·공원','아이 체험','야경·나이트','예술·박물관','휴양'],
     cities: ['도쿄','파리','뉴욕','방콕','로마','바르셀로나'],
-    types: { attraction:'명소', restaurant:'식당', cafe:'카페', shop:'쇼핑', park:'공원', nightlife:'나이트', experience:'체험' }
+    types: { attraction:'명소', restaurant:'식당', cafe:'카페', shop:'쇼핑', park:'공원', nightlife:'나이트', experience:'체험' },
+    // 인트로
+    intro_skip: '건너뛰기', intro_next: '다음', intro_start: '시작하기',
+    intro1_h: '전세계 어디든', intro1_d: '도시 이름만 입력하면 AI가 일정을 설계합니다.',
+    intro2_h: '당신에게 맞춰',  intro2_d: '동행·관심사 반영, 실제 장소 기반 추천.',
+    intro3_h: '함께, 오프라인에서도', intro3_d: '저장·공유·오프라인 열람 (일부 기능은 추후 제공).',
+    // 빈 상태 (B4 이후)
+    empty_title: '아직 만든 여행이 없어요', empty_cta: '첫 여행 만들기',
+    // 설정
+    settings: '설정', settings_open: '설정 열기', back: '뒤로',
+    set_language: '언어',
+    set_currency: '표시 통화', set_currency_auto: '자동 (언어 기반)',
+    set_unit_temp: '온도 단위', unit_c: '°C', unit_f: '°F',
+    set_theme: '테마', theme_light: '라이트', theme_dark: '다크', theme_system: '시스템',
+    set_about: '앱 정보', set_version: '버전',
+    set_privacy: '개인정보처리방침', set_terms: '이용약관',
+    set_sources: '데이터 출처·라이선스', set_feedback: '피드백 보내기',
+    set_reset: '데이터 초기화', set_reset_confirm: '정말 모든 설정과 데이터를 초기화할까요?',
+    set_reset_done: '초기화되었습니다.',
+    set_account: '계정', set_account_soon: '추후 제공'
   },
   en: {
     kicker: 'Your AI travel companion',
@@ -54,6 +77,7 @@ window.I18N = {
     err_city: 'Please enter a city to visit.',
     err_format: 'The AI couldn’t format the itinerary. Please try again.',
     err_generic: 'Couldn’t generate the itinerary. Please try again.',
+    err_retry: 'Try again',
     weather_now: 'Weather now', humidity: 'humidity', no_info: 'No data', loading_short: 'Loading…',
     currency_label: 'Exchange', local_currency: 'Local currency',
     day: 'Day', butler_tips: 'Butler’s tips',
@@ -63,7 +87,23 @@ window.I18N = {
     parties: { family: '👨‍👩‍👧 Family', couple: '💑 Couple', friends: '👥 Friends', solo: '🧍 Solo' },
     interests: ['History & culture','Food','Shopping','Nature & parks','Kids','Nightlife','Art & museums','Relaxation'],
     cities: ['Tokyo','Paris','New York','Bangkok','Rome','Barcelona'],
-    types: { attraction:'Sight', restaurant:'Food', cafe:'Café', shop:'Shop', park:'Park', nightlife:'Night', experience:'Activity' }
+    types: { attraction:'Sight', restaurant:'Food', cafe:'Café', shop:'Shop', park:'Park', nightlife:'Night', experience:'Activity' },
+    intro_skip: 'Skip', intro_next: 'Next', intro_start: 'Get started',
+    intro1_h: 'Anywhere in the world', intro1_d: 'Just type a city — the AI designs an itinerary.',
+    intro2_h: 'Tailored to you', intro2_d: 'Reflects your party and interests, real places only.',
+    intro3_h: 'Together, even offline', intro3_d: 'Save, share, browse offline (some features coming soon).',
+    empty_title: 'No trips yet', empty_cta: 'Plan your first trip',
+    settings: 'Settings', settings_open: 'Open settings', back: 'Back',
+    set_language: 'Language',
+    set_currency: 'Display currency', set_currency_auto: 'Auto (by language)',
+    set_unit_temp: 'Temperature', unit_c: '°C', unit_f: '°F',
+    set_theme: 'Theme', theme_light: 'Light', theme_dark: 'Dark', theme_system: 'System',
+    set_about: 'About', set_version: 'Version',
+    set_privacy: 'Privacy Policy', set_terms: 'Terms of Service',
+    set_sources: 'Data sources & licenses', set_feedback: 'Send feedback',
+    set_reset: 'Reset data', set_reset_confirm: 'Reset all settings and data?',
+    set_reset_done: 'All data has been reset.',
+    set_account: 'Account', set_account_soon: 'Coming soon'
   },
   ja: {
     kicker: 'AI旅のパートナー',
@@ -81,6 +121,7 @@ window.I18N = {
     err_city: '訪れる都市を入力してください。',
     err_format: 'AIが旅程の形式を整えられませんでした。もう一度お試しください。',
     err_generic: '旅程を生成できませんでした。もう一度お試しください。',
+    err_retry: '再試行',
     weather_now: '現在の天気', humidity: '湿度', no_info: '情報なし', loading_short: '読み込み中…',
     currency_label: '為替', local_currency: '現地通貨',
     day: 'Day', butler_tips: 'バトラーのヒント',
@@ -90,7 +131,23 @@ window.I18N = {
     parties: { family: '👨‍👩‍👧 家族', couple: '💑 カップル', friends: '👥 友人', solo: '🧍 一人' },
     interests: ['歴史・文化','グルメ','ショッピング','自然・公園','子ども向け','ナイトライフ','アート・美術館','リラックス'],
     cities: ['東京','パリ','ニューヨーク','バンコク','ローマ','バルセロナ'],
-    types: { attraction:'名所', restaurant:'食事', cafe:'カフェ', shop:'買物', park:'公園', nightlife:'ナイト', experience:'体験' }
+    types: { attraction:'名所', restaurant:'食事', cafe:'カフェ', shop:'買物', park:'公園', nightlife:'ナイト', experience:'体験' },
+    intro_skip: 'スキップ', intro_next: '次へ', intro_start: 'はじめる',
+    intro1_h: '世界のどこへでも', intro1_d: '都市名を入力するだけでAIが旅程を設計。',
+    intro2_h: 'あなたに合わせて', intro2_d: '同行・関心を反映、実在の場所のみ。',
+    intro3_h: '一緒に、オフラインでも', intro3_d: '保存・共有・オフライン閲覧（一部機能は今後）。',
+    empty_title: 'まだ旅行がありません', empty_cta: '最初の旅行をつくる',
+    settings: '設定', settings_open: '設定を開く', back: '戻る',
+    set_language: '言語',
+    set_currency: '表示通貨', set_currency_auto: '自動（言語に従う）',
+    set_unit_temp: '温度単位', unit_c: '°C', unit_f: '°F',
+    set_theme: 'テーマ', theme_light: 'ライト', theme_dark: 'ダーク', theme_system: 'システム',
+    set_about: 'アプリ情報', set_version: 'バージョン',
+    set_privacy: 'プライバシーポリシー', set_terms: '利用規約',
+    set_sources: 'データソース・ライセンス', set_feedback: 'フィードバックを送る',
+    set_reset: 'データをリセット', set_reset_confirm: 'すべての設定とデータをリセットしますか？',
+    set_reset_done: 'リセットされました。',
+    set_account: 'アカウント', set_account_soon: '今後対応'
   },
   zh: {
     kicker: 'AI旅行伙伴',
@@ -108,6 +165,7 @@ window.I18N = {
     err_city: '请输入要前往的城市。',
     err_format: 'AI未能生成正确的行程格式，请重试。',
     err_generic: '未能生成行程，请重试。',
+    err_retry: '重试',
     weather_now: '当前天气', humidity: '湿度', no_info: '暂无信息', loading_short: '加载中…',
     currency_label: '汇率', local_currency: '当地货币',
     day: 'Day', butler_tips: '管家提示',
@@ -117,6 +175,22 @@ window.I18N = {
     parties: { family: '👨‍👩‍👧 家庭', couple: '💑 情侣', friends: '👥 朋友', solo: '🧍 独自' },
     interests: ['历史·文化','美食','购物','自然·公园','亲子','夜生活','艺术·博物馆','休闲'],
     cities: ['东京','巴黎','纽约','曼谷','罗马','巴塞罗那'],
-    types: { attraction:'景点', restaurant:'餐厅', cafe:'咖啡', shop:'购物', park:'公园', nightlife:'夜生活', experience:'体验' }
+    types: { attraction:'景点', restaurant:'餐厅', cafe:'咖啡', shop:'购物', park:'公园', nightlife:'夜生活', experience:'体验' },
+    intro_skip: '跳过', intro_next: '下一步', intro_start: '开始使用',
+    intro1_h: '世界任何地方', intro1_d: '只需输入城市名，AI 即可设计行程。',
+    intro2_h: '为您量身定制', intro2_d: '反映同行与兴趣，仅基于真实地点。',
+    intro3_h: '一起，离线也可', intro3_d: '保存、分享、离线浏览（部分功能即将推出）。',
+    empty_title: '还没有旅行', empty_cta: '规划第一趟旅行',
+    settings: '设置', settings_open: '打开设置', back: '返回',
+    set_language: '语言',
+    set_currency: '显示货币', set_currency_auto: '自动（按语言）',
+    set_unit_temp: '温度单位', unit_c: '°C', unit_f: '°F',
+    set_theme: '主题', theme_light: '浅色', theme_dark: '深色', theme_system: '系统',
+    set_about: '关于', set_version: '版本',
+    set_privacy: '隐私政策', set_terms: '使用条款',
+    set_sources: '数据来源·许可', set_feedback: '发送反馈',
+    set_reset: '重置数据', set_reset_confirm: '确定要重置所有设置和数据吗？',
+    set_reset_done: '已重置。',
+    set_account: '账户', set_account_soon: '即将推出'
   }
 };

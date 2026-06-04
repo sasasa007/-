@@ -7,6 +7,15 @@
   <meta name="description" content="Any city in the world — an AI butler designs a trip tailored to your family." />
   <meta name="theme-color" content="#FAF6F0" />
 
+  <!-- PWA — Travel Butler (격리: /lab scope. 런던 가족앱 /manifest.json은 무영향) -->
+  <link rel="manifest" href="/lab/manifest.json" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png" />
+  <link rel="icon" type="image/svg+xml" href="/icons/travel-butler-mini.svg" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Travel Butler" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Noto+Serif+KR:wght@400;500;600&family=Noto+Serif+JP:wght@400;500;600&family=Noto+Serif+SC:wght@400;500;600&family=Newsreader:ital@0;1&display=swap" rel="stylesheet">
@@ -14,6 +23,7 @@
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 
   <style>
+    /* === 라이트 (기본) 팔레트 === */
     :root{
       --cream:#FAF6F0; --card:#ffffff; --sand:#F3EADF; --terra-soft:#F6EAE2;
       --ink:#2B2724; --muted:#6E655C; --faint:#A99C8D; --line:#EFE7DA; --line-2:#E6DBCB;
@@ -21,25 +31,45 @@
       --serif:'Fraunces','Noto Serif KR','Noto Serif JP','Noto Serif SC',serif;
       --sans:'Pretendard',-apple-system,BlinkMacSystemFont,'Hiragino Sans','Microsoft YaHei',sans-serif;
     }
+    /* === 다크 팔레트 (스펙 §5) === */
+    html[data-theme="dark"]{
+      --cream:#1C1916;  --card:#262019;  --sand:#2E2620;  --terra-soft:#3A2A22;
+      --ink:#F3ECE2;    --muted:#B8AC9D; --faint:#857B6E;
+      --line:#33291F;   --line-2:#3D3228;
+      --terra:#E08862;  --terra-deep:#C7613F;
+    }
     html[data-lang="ja"]{--serif:'Fraunces','Noto Serif JP','Noto Serif KR',serif;}
     html[data-lang="zh"]{--serif:'Fraunces','Noto Serif SC','Noto Serif KR',serif;}
     html[data-lang="en"]{--serif:'Fraunces',serif;}
     *{box-sizing:border-box;}
     html,body{margin:0;}
     [x-cloak]{display:none !important;}
-    body{font-family:var(--sans); background:var(--cream); color:var(--ink); min-height:100vh; -webkit-font-smoothing:antialiased; line-height:1.5;}
+    body{font-family:var(--sans); background:var(--cream); color:var(--ink); min-height:100vh; -webkit-font-smoothing:antialiased; line-height:1.5; transition:background .25s, color .25s;}
     .wrap{max-width:540px; margin:0 auto; padding:0 20px 80px;}
 
-    /* 언어 스위처 */
-    .langbar{max-width:540px; margin:0 auto; padding:14px 20px 0; display:flex; justify-content:flex-end; gap:3px;}
-    .langbar button{
+    /* === 상단바: 언어 + 설정 === */
+    .topbar{max-width:540px; margin:0 auto; padding:14px 20px 0; display:flex; align-items:center; gap:6px;}
+    .topbar .lang-row{display:flex; gap:3px; margin-left:auto;}
+    .topbar .lang-row button{
       border:none; background:transparent; font-family:var(--sans); font-size:13px; color:var(--faint);
       padding:5px 9px; border-radius:8px; cursor:pointer; transition:all .14s;
     }
-    .langbar button:hover{color:var(--terra);}
-    .langbar button.on{color:var(--terra); font-weight:600; background:var(--terra-soft);}
+    .topbar .lang-row button:hover{color:var(--terra);}
+    .topbar .lang-row button.on{color:var(--terra); font-weight:600; background:var(--terra-soft);}
+    .topbar .settings-btn{
+      border:1px solid var(--line-2); background:var(--card); color:var(--muted);
+      padding:6px 10px; border-radius:10px; cursor:pointer; font-size:15px;
+      transition:all .14s;
+    }
+    .topbar .settings-btn:hover{color:var(--terra); border-color:var(--terra);}
 
-    .top{max-width:540px; margin:0 auto; padding:18px 20px 8px;}
+    /* === 브랜드 헤더 (로고 + Fraunces 워드마크) === */
+    .top{max-width:540px; margin:0 auto; padding:14px 20px 8px;}
+    .top .brand{display:flex; align-items:center; gap:12px;}
+    .top .brand .mark{width:44px; height:44px; flex-shrink:0;}
+    .top .brand .mark .light{display:block;} .top .brand .mark .dark{display:none;}
+    html[data-theme="dark"] .top .brand .mark .light{display:none;}
+    html[data-theme="dark"] .top .brand .mark .dark{display:block;}
     .top .kick{font-family:var(--serif); font-style:italic; font-size:15px; color:var(--terra); letter-spacing:.01em;}
     .top h1{font-family:var(--serif); font-weight:600; font-size:30px; letter-spacing:-0.01em; margin:2px 0 0;}
     .top .tag{font-size:13.5px; color:var(--muted); margin-top:6px;}
@@ -66,7 +96,11 @@
     .cta.ghost{background:transparent; color:var(--terra); border:1px solid var(--line-2);}
     .cta.ghost:hover{background:var(--terra-soft); border-color:var(--terra);}
 
-    .err{margin-top:14px; color:var(--terra-deep); font-size:13.5px; text-align:center;}
+    .err{margin-top:14px; padding:14px 16px; background:var(--terra-soft); border-radius:12px; text-align:center;}
+    .err .ic{font-size:22px; line-height:1;}
+    .err .msg{color:var(--terra-deep); font-size:13.5px; margin-top:6px;}
+    .err button{margin-top:10px; background:var(--card); border:1px solid var(--terra); color:var(--terra); padding:6px 14px; border-radius:10px; font-size:13px; cursor:pointer; font-family:var(--sans);}
+    .err button:hover{background:var(--terra); color:#fff;}
 
     .load{text-align:center; padding-top:64px;}
     .spinner{width:42px; height:42px; border:3px solid var(--line-2); border-top-color:var(--terra); border-radius:50%; animation:spin .9s linear infinite; margin:0 auto 22px;}
@@ -105,29 +139,214 @@
     .card-block{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:4px 18px;}
     .tips{background:var(--terra-soft); border-radius:16px; padding:18px 20px; margin-top:22px;}
     .tips .th{font-family:var(--serif); font-style:italic; font-size:16px; color:var(--terra-deep); margin-bottom:10px;}
-    .tips .ti{font-size:13.5px; color:#7a5240; line-height:1.7;}
+    .tips .ti{font-size:13.5px; color:var(--ink); opacity:.85; line-height:1.7;}
 
     .disc{text-align:center; font-size:11.5px; color:var(--faint); margin-top:18px; line-height:1.6;}
+
+    /* === 설정 화면 === */
+    .settings-hd{display:flex; align-items:center; gap:8px; padding:8px 0 16px; margin-top:4px;}
+    .settings-hd .back{background:none; border:none; color:var(--terra); cursor:pointer; font-size:18px; padding:6px 10px; border-radius:8px;}
+    .settings-hd .back:hover{background:var(--terra-soft);}
+    .settings-hd .ttl{font-family:var(--serif); font-weight:500; font-size:22px; letter-spacing:-0.01em;}
+    .grp{margin-top:14px;}
+    .grp-ttl{font-size:11px; font-weight:600; color:var(--faint); letter-spacing:.06em; text-transform:uppercase; margin:18px 4px 8px;}
+    .grp-card{background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden;}
+    .srow{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line); min-height:54px;}
+    .srow:last-child{border-bottom:none;}
+    .srow .lbl{flex:1; font-size:14.5px; color:var(--ink);}
+    .srow .sub{font-size:11.5px; color:var(--faint); margin-top:2px;}
+    .srow .ctrl{display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;}
+    .srow .ctrl .chip.sm{padding:5px 10px; font-size:12.5px;}
+    .srow select{padding:7px 10px; border:1px solid var(--line-2); border-radius:9px; background:var(--card); color:var(--ink); font-family:var(--sans); font-size:13px; cursor:pointer; min-width:120px;}
+    .srow a, .srow .link{color:var(--terra); text-decoration:none; font-size:13px;}
+    .srow a:hover, .srow .link:hover{text-decoration:underline;}
+    .srow .danger{color:#cc4838;}
+    .srow .danger:hover{text-decoration:underline;}
+    .srow.disabled{opacity:.55;}
+    .src-list{font-size:12.5px; color:var(--muted); line-height:1.8; padding:12px 16px 4px;}
+    .src-list a{color:var(--terra); text-decoration:none;}
+    .src-list a:hover{text-decoration:underline;}
+    .flash{margin:16px 0; padding:10px 14px; background:var(--terra-soft); color:var(--terra-deep); border-radius:10px; font-size:13px; text-align:center;}
+
+    /* === 인트로 오버레이 === */
+    .intro-bd{position:fixed; inset:0; background:var(--cream); z-index:200; display:flex; flex-direction:column;}
+    .intro-bd .skip{position:absolute; top:14px; right:14px; background:none; border:none; color:var(--faint); cursor:pointer; font-size:13.5px; padding:8px 12px; border-radius:8px;}
+    .intro-bd .skip:hover{color:var(--ink); background:var(--sand);}
+    .intro-bd .body{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 28px; text-align:center;}
+    .intro-bd .mark{width:64px; height:64px; margin-bottom:18px;}
+    .intro-bd .mark .light{display:block;} .intro-bd .mark .dark{display:none;}
+    html[data-theme="dark"] .intro-bd .mark .light{display:none;}
+    html[data-theme="dark"] .intro-bd .mark .dark{display:block;}
+    .intro-bd .word{font-family:var(--serif); font-weight:600; font-size:22px; margin-bottom:36px; letter-spacing:-0.01em;}
+    .intro-bd .h{font-family:var(--serif); font-weight:600; font-size:30px; line-height:1.15; letter-spacing:-0.01em; max-width:340px;}
+    .intro-bd .d{font-size:14.5px; color:var(--muted); margin-top:14px; max-width:320px; line-height:1.6;}
+    .intro-bd .dots{display:flex; gap:8px; justify-content:center; margin:34px 0 24px;}
+    .intro-bd .dot{width:8px; height:8px; border-radius:50%; background:var(--line-2);}
+    .intro-bd .dot.on{background:var(--terra);}
+    .intro-bd .foot{padding:0 28px 36px;}
+    .intro-bd .next{width:100%; padding:15px; border:none; border-radius:14px; background:var(--terra); color:#fff; font-family:var(--sans); font-size:15.5px; font-weight:600; cursor:pointer;}
+    .intro-bd .next:hover{background:var(--terra-deep);}
   </style>
 </head>
 
 <body x-data="butlerTrip()" x-init="init()" x-cloak>
 
-  <!-- 언어 스위처 (항상 표시) -->
-  <div class="langbar">
-    <template x-for="lg in langList" :key="lg.id">
-      <button :class="lang === lg.id ? 'on' : ''" @click="setLang(lg.id)" x-text="lg.label"></button>
-    </template>
+  <!-- 인트로 오버레이 (첫 실행) -->
+  <template x-if="showIntro">
+    <div class="intro-bd">
+      <button class="skip" @click="finishIntro()" x-text="t('intro_skip')"></button>
+      <div class="body">
+        <div class="mark">
+          <img class="light" src="/icons/travel-butler-mark.svg" width="64" height="64" alt="" />
+          <img class="dark"  src="/icons/travel-butler-mark-dark.svg" width="64" height="64" alt="" />
+        </div>
+        <div class="word">Travel Butler</div>
+        <template x-if="introIdx === 0"><div>
+          <div class="h" x-text="t('intro1_h')"></div>
+          <div class="d" x-text="t('intro1_d')"></div>
+        </div></template>
+        <template x-if="introIdx === 1"><div>
+          <div class="h" x-text="t('intro2_h')"></div>
+          <div class="d" x-text="t('intro2_d')"></div>
+        </div></template>
+        <template x-if="introIdx === 2"><div>
+          <div class="h" x-text="t('intro3_h')"></div>
+          <div class="d" x-text="t('intro3_d')"></div>
+        </div></template>
+        <div class="dots">
+          <span class="dot" :class="introIdx === 0 ? 'on' : ''"></span>
+          <span class="dot" :class="introIdx === 1 ? 'on' : ''"></span>
+          <span class="dot" :class="introIdx === 2 ? 'on' : ''"></span>
+        </div>
+      </div>
+      <div class="foot">
+        <button class="next" @click="nextIntro()" x-text="introIdx === 2 ? t('intro_start') : t('intro_next')"></button>
+      </div>
+    </div>
+  </template>
+
+  <!-- 상단바: 언어 + 설정 (인트로 중에는 숨김) -->
+  <div class="topbar" x-show="!showIntro">
+    <div class="lang-row">
+      <template x-for="lg in langList" :key="lg.id">
+        <button :class="lang === lg.id ? 'on' : ''" @click="setLang(lg.id)" x-text="lg.label"></button>
+      </template>
+    </div>
+    <button class="settings-btn" @click="openSettings()" :title="t('settings_open')" :aria-label="t('settings_open')">⚙</button>
   </div>
 
-  <header class="top" x-show="step === 'setup'">
-    <div class="kick" x-text="t('kicker')"></div>
-    <h1>Travel Butler</h1>
+  <!-- 브랜드 헤더 (setup 화면에서만) -->
+  <header class="top" x-show="step === 'setup' && !showIntro">
+    <div class="brand">
+      <div class="mark">
+        <img class="light" src="/icons/travel-butler-mark.svg" width="44" height="44" alt="" />
+        <img class="dark"  src="/icons/travel-butler-mark-dark.svg" width="44" height="44" alt="" />
+      </div>
+      <div>
+        <div class="kick" x-text="t('kicker')"></div>
+        <h1>Travel Butler</h1>
+      </div>
+    </div>
     <p class="tag" x-text="t('tagline')"></p>
   </header>
 
-  <main class="wrap">
+  <main class="wrap" x-show="!showIntro">
 
+    <!-- ===== 설정 화면 ===== -->
+    <section x-show="step === 'settings'">
+      <div class="settings-hd">
+        <button class="back" @click="closeSettings()" :aria-label="t('back')">‹</button>
+        <div class="ttl" x-text="t('settings')"></div>
+      </div>
+
+      <template x-if="flashMsg"><div class="flash" x-text="flashMsg"></div></template>
+
+      <div class="grp-ttl" x-text="t('set_language')"></div>
+      <div class="grp-card">
+        <div class="srow">
+          <div class="lbl" x-text="t('set_language')"></div>
+          <div class="ctrl">
+            <template x-for="lg in langList" :key="lg.id">
+              <span class="chip sm" :class="lang === lg.id ? 'on' : ''" @click="setLang(lg.id)" x-text="lg.label"></span>
+            </template>
+          </div>
+        </div>
+        <div class="srow">
+          <div class="lbl" x-text="t('set_currency')"></div>
+          <div class="ctrl">
+            <select :value="currencyOverride || ''" @change="setCurrencyOverride($event.target.value)">
+              <option value="" x-text="t('set_currency_auto') + ' (' + langMeta.currency + ')'"></option>
+              <template x-for="c in currencyOptions" :key="c">
+                <option :value="c" x-text="c" :selected="currencyOverride === c"></option>
+              </template>
+            </select>
+          </div>
+        </div>
+        <div class="srow">
+          <div class="lbl" x-text="t('set_unit_temp')"></div>
+          <div class="ctrl">
+            <span class="chip sm" :class="unitTemp === 'c' ? 'on' : ''" @click="setUnitTemp('c')" x-text="t('unit_c')"></span>
+            <span class="chip sm" :class="unitTemp === 'f' ? 'on' : ''" @click="setUnitTemp('f')" x-text="t('unit_f')"></span>
+          </div>
+        </div>
+        <div class="srow">
+          <div class="lbl" x-text="t('set_theme')"></div>
+          <div class="ctrl">
+            <span class="chip sm" :class="theme === 'light' ? 'on' : ''" @click="setTheme('light')" x-text="t('theme_light')"></span>
+            <span class="chip sm" :class="theme === 'dark' ? 'on' : ''"  @click="setTheme('dark')"  x-text="t('theme_dark')"></span>
+            <span class="chip sm" :class="theme === 'system' ? 'on' : ''" @click="setTheme('system')" x-text="t('theme_system')"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp-ttl" x-text="t('set_about')"></div>
+      <div class="grp-card">
+        <div class="srow">
+          <div class="lbl">
+            <div x-text="t('set_version')"></div>
+            <div class="sub" x-text="'Travel Butler · v' + (window.APP_VERSION || '?')"></div>
+          </div>
+        </div>
+        <div class="srow">
+          <div class="lbl" x-text="t('set_privacy')"></div>
+          <a :href="'/lab/legal/privacy.html?lang=' + lang" target="_blank" rel="noopener" x-text="t('set_privacy') + ' ↗'"></a>
+        </div>
+        <div class="srow">
+          <div class="lbl" x-text="t('set_terms')"></div>
+          <a :href="'/lab/legal/terms.html?lang=' + lang" target="_blank" rel="noopener" x-text="t('set_terms') + ' ↗'"></a>
+        </div>
+        <div class="srow" style="flex-direction:column; align-items:stretch;">
+          <div class="lbl" x-text="t('set_sources')"></div>
+          <div class="src-list">
+            · <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> — 날씨 / weather<br>
+            · <a href="https://frankfurter.dev" target="_blank" rel="noopener">Frankfurter</a> — 환율 / FX<br>
+            · <a href="https://www.google.com/maps" target="_blank" rel="noopener">Google Maps</a> — 지도 링크 / map links<br>
+            · <a href="https://www.anthropic.com" target="_blank" rel="noopener">Anthropic Claude</a> — AI 생성 / itinerary<br>
+            · <a href="https://alpinejs.dev" target="_blank" rel="noopener">Alpine.js</a> · <a href="https://fonts.google.com/specimen/Fraunces" target="_blank" rel="noopener">Fraunces</a> · <a href="https://github.com/orioncactus/pretendard" target="_blank" rel="noopener">Pretendard</a>
+          </div>
+        </div>
+        <div class="srow">
+          <div class="lbl" x-text="t('set_feedback')"></div>
+          <a :href="feedbackHref()" x-text="t('set_feedback') + ' ↗'"></a>
+        </div>
+      </div>
+
+      <div class="grp-ttl" x-text="t('set_account')"></div>
+      <div class="grp-card">
+        <div class="srow disabled">
+          <div class="lbl">
+            <div x-text="t('set_account')"></div>
+            <div class="sub" x-text="t('set_account_soon')"></div>
+          </div>
+        </div>
+        <div class="srow">
+          <div class="lbl" x-text="t('set_reset')"></div>
+          <button class="link danger" @click="resetData()" x-text="t('set_reset')"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Setup 화면 ===== -->
     <section x-show="step === 'setup'">
       <div class="label" x-text="t('label_where')"></div>
       <input class="field" type="text" x-model="form.city" :placeholder="t('ph_city')" @keydown.enter="generate()" />
@@ -161,17 +380,23 @@
         </template>
       </div>
 
-      <template x-if="error"><div class="err" x-text="error"></div></template>
+      <template x-if="error"><div class="err">
+        <div class="ic">⚠️</div>
+        <div class="msg" x-text="error"></div>
+        <button @click="error=null; generate()" x-text="t('err_retry')"></button>
+      </div></template>
 
       <button class="cta" @click="generate()" x-text="t('cta_make', form.city.trim())"></button>
     </section>
 
+    <!-- ===== Loading ===== -->
     <section x-show="step === 'loading'" class="load">
       <div class="spinner"></div>
       <div class="msg" x-text="loadingMsg"></div>
       <div class="sub" x-text="t('loading_sub')"></div>
     </section>
 
+    <!-- ===== Result ===== -->
     <section x-show="step === 'result' && plan">
       <div class="hero">
         <div class="place" x-text="cityTitle()"></div>
@@ -189,7 +414,7 @@
           <div class="wl" x-text="t('weather_now')"></div>
           <template x-if="weather.loaded">
             <div>
-              <div class="wv"><span x-text="weather.icon"></span> <span x-text="weather.tempC + '°'"></span></div>
+              <div class="wv"><span x-text="weather.icon"></span> <span x-text="tempDisplay()"></span></div>
               <div class="wd" x-text="weather.desc + ' · ' + t('humidity') + ' ' + weather.humidity + '%'"></div>
             </div>
           </template>
