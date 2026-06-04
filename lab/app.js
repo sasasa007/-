@@ -17,6 +17,14 @@ function butlerTrip() {
     unitTemp: 'c',            // c | f
     currencyOverride: null,   // null = 언어 자동, 그 외는 통화 코드(KRW/USD/JPY...)
 
+    // Firebase 영속화 (B4)
+    uid: null,                // 익명 인증 uid (or 구글 로그인 uid, Phase 2)
+    tripId: null,             // 현재 여행 doc id (생성/복원 시 세팅)
+    fbReady: false,           // 익명 로그인 완료 후 true
+    restoring: false,         // 복원 진행 중
+    _fbAuth: null,
+    _fbDb: null,
+
     // 인트로 (첫 실행)
     showIntro: false,
     introIdx: 0,
@@ -102,6 +110,9 @@ function butlerTrip() {
 
       // 초기 날짜
       this.form.startDate = new Date().toISOString().slice(0, 10);
+
+      // Firebase 영속화 (B4) — 익명 로그인 + 복원
+      this._initFirebase();
     },
 
     // ---- 언어/테마 적용 ----
@@ -183,11 +194,127 @@ function butlerTrip() {
       const msg = this.t('set_reset_confirm');
       if (!window.confirm(msg)) return;
       try {
-        ['tb_lang','tb_theme','tb_unit_temp','tb_currency','tb_seen_intro'].forEach(k => localStorage.removeItem(k));
+        // tb_last_trip 포함 — 다음 로드 시 복원 안 함 (Firestore 문서는 보존)
+        ['tb_lang','tb_theme','tb_unit_temp','tb_currency','tb_seen_intro','tb_last_trip']
+          .forEach(k => localStorage.removeItem(k));
       } catch (e) {}
       this.flashMsg = this.t('set_reset_done');
-      // 부드럽게 새로고침 — 모든 상태가 재초기화되도록
       setTimeout(() => { location.reload(); }, 500);
+    },
+
+    // ---- B4 Firebase 영속화 ----
+    _initFirebase() {
+      try {
+        if (!window.firebase || !window.TB_FIREBASE) {
+          console.warn('[B4] Firebase SDK 또는 config 누락 — 영속화 비활성');
+          return;
+        }
+        if (!firebase.apps.length) firebase.initializeApp(window.TB_FIREBASE);
+        this._fbAuth = firebase.auth();
+        this._fbDb = firebase.firestore();
+        this._fbAuth.onAuthStateChanged(async (user) => {
+          if (user) {
+            this.uid = user.uid;
+            this.fbReady = true;
+            // 복원은 한 번만 (재인증 등으로 이벤트 재발화해도 중복 시도 안 함)
+            if (!this._restoreTried) {
+              this._restoreTried = true;
+              await this._restoreLastTrip();
+            }
+          } else {
+            try { await this._fbAuth.signInAnonymously(); }
+            catch (e) { console.warn('[B4] 익명 로그인 실패', e); }
+          }
+        });
+      } catch (e) {
+        console.warn('[B4] Firebase 초기화 실패', e);
+      }
+    },
+
+    async _restoreLastTrip() {
+      // 사용자가 이미 다른 작업 중이거나 폼을 만지고 있으면 복원 스킵
+      if (this.step !== 'setup' || this.showIntro) return;
+      let lastTripId = null;
+      try { lastTripId = localStorage.getItem('tb_last_trip'); } catch (e) {}
+      if (!lastTripId || !this.uid || !this._fbDb) return;
+      this.restoring = true;
+      try {
+        const ref = this._fbDb.collection('users').doc(this.uid).collection('trips').doc(lastTripId);
+        const snap = await ref.get();
+        if (!snap.exists) {
+          // 삭제됐거나 다른 uid의 doc — localStorage 정리
+          try { localStorage.removeItem('tb_last_trip'); } catch (e) {}
+          return;
+        }
+        const data = snap.data() || {};
+        if (!data.plan || !data.meta) return;
+        // 폼 복원 (입력 컨텍스트 유지)
+        const m = data.meta;
+        if (m.city)      this.form.city = m.city;
+        if (m.startDate) this.form.startDate = m.startDate;
+        if (m.days)      this.form.days = m.days;
+        if (m.party)     this.form.party = m.party;
+        // 생성 당시 언어로 전환 (UI 텍스트와 일정 본문 언어 일치)
+        if (m.lang && window.LANGS && window.LANGS[m.lang]) {
+          this.lang = m.lang;
+          this.applyLangAttrs();
+        }
+        // 만약 사용자가 이 사이 폼에 손댔다면 setup 유지 (덮어쓰기 방지)
+        if (this.step !== 'setup' || this.showIntro) return;
+        this.plan = data.plan;
+        this.tripId = lastTripId;
+        this.step = 'result';
+        // 날씨·환율은 실시간이라 매번 재조회
+        const dest = data.plan.destination || {};
+        this.fetchWeather(dest.lat, dest.lng);
+        this.fetchCurrency(dest.currency);
+        window.scrollTo(0, 0);
+      } catch (e) {
+        console.warn('[B4] 복원 실패', e);
+      } finally {
+        this.restoring = false;
+      }
+    },
+
+    async _saveTrip(plan) {
+      if (!this.fbReady || !this.uid || !this._fbDb) {
+        // 아직 인증 완료 안 됨 — 인증되면 한 번 더 시도하도록 짧게 대기
+        for (let i = 0; i < 20 && !this.fbReady; i++) {
+          await new Promise(r => setTimeout(r, 250));
+        }
+        if (!this.fbReady || !this.uid || !this._fbDb) {
+          console.warn('[B4] 저장 스킵 — Firebase 준비 안 됨');
+          return;
+        }
+      }
+      try {
+        const tripsCol = this._fbDb.collection('users').doc(this.uid).collection('trips');
+        const tripRef = this.tripId ? tripsCol.doc(this.tripId) : tripsCol.doc();
+        const now = firebase.firestore.FieldValue.serverTimestamp();
+        const dest = plan.destination || {};
+        const members = {}; members[this.uid] = 'owner';
+        const meta = {
+          city: this.form.city.trim(),
+          startDate: this.form.startDate || '',
+          days: this.form.days,
+          party: this.form.party,
+          interests: [...this.form.interests],
+          lang: this.lang,
+          title: dest.cityLocal || dest.city || this.form.city.trim(),
+          createdAt: now,
+          updatedAt: now
+        };
+        await tripRef.set({ meta, plan, members });
+        // users/{uid} 메타 (없으면 생성, lastLang 갱신)
+        await this._fbDb.collection('users').doc(this.uid).set({
+          lastLang: this.lang,
+          updatedAt: now
+        }, { merge: true });
+        this.tripId = tripRef.id;
+        try { localStorage.setItem('tb_last_trip', this.tripId); } catch (e) {}
+      } catch (e) {
+        console.warn('[B4] 저장 실패', e);
+      }
     },
 
     // ---- 폼 헬퍼 ----
@@ -247,10 +374,13 @@ function butlerTrip() {
         if (!plan) throw new Error(this.t('err_format'));
 
         this.plan = plan;
+        this.tripId = null;     // 신규 doc 생성 강제 (이전 tripId 있으면 _saveTrip이 새 id 발급)
         this.step = 'result';
         window.scrollTo(0, 0);
         this.fetchWeather(plan.destination.lat, plan.destination.lng);
         this.fetchCurrency(plan.destination.currency);
+        // B4: Firestore 영속화 (실패해도 화면은 영향 없음)
+        this._saveTrip(plan).catch(e => console.warn('[B4] 저장 비동기 실패', e));
       } catch (e) {
         console.error('[Travel Butler] 일정 생성 실패', e);
         this.error = (e && e.message) || this.t('err_generic');

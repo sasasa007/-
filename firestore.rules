@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 사용자별 데이터 — 로그인된 본인(익명/구글)만 접근
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // 여행 문서
+      match /trips/{tripId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // Phase 2 공유 확장 시: members 맵에 uid 포함하면 허용하도록 확장
+        // allow read, write: if request.auth != null &&
+        //   (request.auth.uid == userId || request.auth.uid in resource.data.members);
+      }
+    }
+  }
+}
