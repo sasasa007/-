@@ -147,6 +147,7 @@ ${JSON.stringify(context, null, 2)}
 사용자가 준 도시·기간·동행·관심사에 맞춰 현실적이고 실용적인 여행 일정을 설계합니다.
 
 [출력 언어] 사용자에게 보이는 모든 텍스트(cityLocal, countryLocal, summary, highlights, concept, nameLocal, why, tip, tips)는 반드시 ${OUT}로 작성하세요. 단 name(영문/로마자 표기, 지도 검색용)·currency(ISO 코드)·currencySymbol·lat·lng는 언어와 무관하게 그대로 둡니다.
+[고유명사 예외] 식당·카페·상점·브랜드 등 고유명사는 무리하게 음역하지 말고 원문(현지어 또는 라틴 표기) 그대로 nameLocal에 둘 수 있습니다 — 지도·검색 친화성 우선.
 
 설계 원칙:
 1. [실재 검증 — 최우선] 실제로 존재하고 현재 운영 중인, 널리 알려진 장소만 추천. 장소명·주소·좌표를 절대 지어내지 말 것. 이름이 확실하지 않으면 그 장소를 빼고, 더 유명하고 확실한 장소로 대체.
@@ -251,6 +252,11 @@ ${JSON.stringify(context, null, 2)}
       }
     }
 
+    // itinerary: 좌표 sanity check (범위 밖 / (0,0) / 누락 → null)
+    if (taskType === 'itinerary' && parsed && parsed.type === 'itinerary') {
+      parsed = sanitizeItineraryCoords(parsed);
+    }
+
     return new Response(JSON.stringify(parsed), {
       headers: {
         'Content-Type': 'application/json',
@@ -319,6 +325,31 @@ export function repairTruncatedJson(s) {
   out = out.replace(/[:,]\s*$/, '');           // 끝의 콜론/콤마(미완성 키·값) 제거
   while (stack.length) out += stack.pop();     // 열린 괄호 닫기
   return out;
+}
+
+// ─── 좌표 sanity check ───
+// itinerary 응답의 destination·activity 좌표를 검증해 부정 값(범위 밖 / (0,0) / 누락)을 null로 정규화.
+// 정확한 위치까지는 못 잡지만 모델 출력 노이즈(예: 경도 한 자리 누락, null-island, 문자열)는 차단.
+export function sanitizeItineraryCoords(plan) {
+  if (!plan || typeof plan !== 'object') return plan;
+  const num = (v) => typeof v === 'number' && isFinite(v);
+  const validLat = (v) => num(v) && v >= -90  && v <= 90;
+  const validLng = (v) => num(v) && v >= -180 && v <= 180;
+  const fix = (obj) => {
+    if (!obj || typeof obj !== 'object') return;
+    const lat = obj.lat, lng = obj.lng;
+    // (0,0)는 null-island = 누락 placeholder로 간주
+    if (lat === 0 && lng === 0) { obj.lat = null; obj.lng = null; return; }
+    obj.lat = validLat(lat) ? lat : null;
+    obj.lng = validLng(lng) ? lng : null;
+  };
+  fix(plan.destination);
+  if (Array.isArray(plan.days)) {
+    for (const day of plan.days) {
+      if (Array.isArray(day.activities)) for (const a of day.activities) fix(a);
+    }
+  }
+  return plan;
 }
 
 // 기본 경로: /.netlify/functions/butler
