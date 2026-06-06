@@ -682,10 +682,23 @@ function tripApp() {
           })
         });
         const data = await res.json();
-        const raw = (data.answer || data.intro || '').trim();
-        // JSON 파싱 (코드펜스 제거)
-        const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        const card = JSON.parse(cleaned);
+
+        // F40 fix: butler.js parseAiJson이 모델의 순수 JSON을 응답 body 루트로 흘려보내는
+        // 경우(가장 흔함)와, answer/intro 문자열로 오는 경우(폴백) 둘 다 처리.
+        let card = null;
+        if (data && typeof data === 'object' && data.name && (data.address || data.coordinates)) {
+          // (A) 응답 자체가 이미 카드 형태 — name + (address 또는 coordinates) 보유
+          card = { ...data };
+        } else {
+          // (B) answer/intro 문자열에서 JSON 추출 (코드펜스/주변 텍스트 제거)
+          const raw = (data.answer || data.intro || '').trim();
+          if (raw) {
+            const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            const s = cleaned.indexOf('{'), e = cleaned.lastIndexOf('}');
+            if (s >= 0 && e > s) card = JSON.parse(cleaned.slice(s, e + 1));
+          }
+        }
+        if (!card || !card.name) throw new Error('카드 데이터 누락');
 
         // 고유 ID + 커스텀 플래그
         card.id = 'custom_' + Date.now().toString(36);
