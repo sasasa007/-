@@ -11,7 +11,8 @@ window.TripStorage = (function () {
       budget: 0,       // 총 여행 예산 (£)
       items: []        // { id, date, category, amount, memo, createdAt }
     },
-    diary: {}          // { "3": { text, createdAt } }
+    diary: {},         // { "3": { text, createdAt } }
+    customPlaces: {}   // F40: { "custom_xxx": { id, name, nameKo, emoji, ..., isCustom:true } }
   });
 
   function read() {

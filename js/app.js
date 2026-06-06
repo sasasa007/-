@@ -116,6 +116,17 @@ function tripApp() {
     // 위치 기반 주변 발견 (F39)
     nearby: { loading: false, items: [], error: null, myLat: null, myLng: null },
 
+    // F40: 커스텀 장소/할 일 추가 (Butler 웹검색으로 카드 자동 생성)
+    customAdd: {
+      show: false,
+      step: 'input',      // 'input' | 'enriching' | 'preview' | 'error'
+      targetDay: null,    // 추가할 일차 번호
+      inputText: '',
+      type: 'place',      // 'place' | 'todo'
+      preview: null,      // Butler가 반환한 카드 데이터 (Type A)
+      errorMsg: ''
+    },
+
     // Butler AI
     butlerMessages: [],
     butlerInput: '',
@@ -298,7 +309,7 @@ function tripApp() {
     // Firebase → 로컬 병합 (필드별, 다른 필드만 교체)
     _mergeFromFirebase(remote) {
       let changed = false;
-      ['days', 'expenses', 'diary', 'checklist'].forEach(f => {
+      ['days', 'expenses', 'diary', 'checklist', 'customPlaces'].forEach(f => {
         if (remote[f] === undefined) return;
         const remoteStr = JSON.stringify(remote[f]);
         if (remoteStr !== JSON.stringify(this.store[f] ?? null)) {
@@ -320,7 +331,7 @@ function tripApp() {
       this.sync.status = 'syncing';
       this._syncTimer = setTimeout(() => {
         const updates = {};
-        ['days', 'expenses', 'diary', 'checklist'].forEach(f => {
+        ['days', 'expenses', 'diary', 'checklist', 'customPlaces'].forEach(f => {
           const cur = JSON.stringify(this.store[f] ?? null);
           if (cur !== this._lastPushed[f]) {
             updates[f] = this.store[f] ?? null;
@@ -607,6 +618,160 @@ function tripApp() {
       );
     },
 
+    // ──────────────────────────────────────────────
+    // F40: 커스텀 장소 · 할 일 추가
+    // ──────────────────────────────────────────────
+
+    openCustomAdd(dayNum, type = 'place') {
+      this.customAdd = {
+        show: true, step: 'input',
+        targetDay: dayNum, inputText: '',
+        type, preview: null, errorMsg: ''
+      };
+    },
+    closeCustomAdd() { this.customAdd.show = false; },
+
+    // 모달 내 타입 탭 전환
+    switchCustomType(type) {
+      this.customAdd.type = type;
+      this.customAdd.inputText = '';
+      this.customAdd.preview = null;
+      this.customAdd.step = 'input';
+    },
+
+    // [Type A] 장소 — Butler 웹 검색으로 카드 데이터 생성
+    async submitCustomPlace() {
+      const name = this.customAdd.inputText.trim();
+      if (!name) return;
+      this.customAdd.step = 'enriching';
+      this.customAdd.errorMsg = '';
+
+      const prompt = `런던 장소 정보를 JSON으로만 반환해줘. 다른 텍스트 없음.
+장소명: "${name}"
+
+반드시 아래 JSON 형식 그대로:
+{
+  "name": "영어 정식명칭",
+  "nameKo": "한국어명 (없으면 장소명 그대로)",
+  "emoji": "가장 어울리는 이모지 1개",
+  "type": "restaurant 또는 attraction 또는 shop 또는 pub 중 하나",
+  "address": "영문 정확한 주소",
+  "coordinates": { "lat": 위도숫자, "lng": 경도숫자 },
+  "nearestTube": "가장 가까운 런던 지하철역명",
+  "hours": "운영시간 (모르면 null)",
+  "price": "가격대 (£ 기준, 모르면 null)",
+  "duration": "권장 체류·방문 시간 예: 1h, 30min",
+  "curatedReason": "한국어로 2문장. 이 장소의 특징과 추천 이유.",
+  "tags": ["관련 태그 2~4개"]
+}
+
+좌표는 실제 주소의 정확한 위도/경도. 확실하지 않으면 null.`;
+
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: prompt,
+            context: { place: name },
+            taskType: 'general',
+            useWebSearch: true
+          })
+        });
+        const data = await res.json();
+        const raw = (data.answer || data.intro || '').trim();
+        // JSON 파싱 (코드펜스 제거)
+        const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const card = JSON.parse(cleaned);
+
+        // 고유 ID + 커스텀 플래그
+        card.id = 'custom_' + Date.now().toString(36);
+        card.isCustom = true;
+        card.source = 'butler';
+
+        this.customAdd.preview = card;
+        this.customAdd.step = 'preview';
+      } catch (e) {
+        console.warn('[F40] 커스텀 장소 enrich 실패', e);
+        this.customAdd.step = 'error';
+        this.customAdd.errorMsg = '장소 정보를 가져오지 못했어요. 장소명을 더 구체적으로 입력해 주세요.';
+      }
+    },
+
+    // [Type A] 장소 확정 저장
+    confirmCustomPlace() {
+      const card = this.customAdd.preview;
+      const n = this.customAdd.targetDay;
+      if (!card || !n) return;
+
+      if (!this.store.customPlaces) this.store.customPlaces = {};
+      this.store.customPlaces[card.id] = card;
+
+      if (!this.store.days[n]) this.store.days[n] = { activities: [] };
+      if (!this.store.days[n].customItems) this.store.days[n].customItems = [];
+      if (!this.store.days[n].customItems.includes(card.id)) {
+        this.store.days[n].customItems.push(card.id);
+      }
+
+      this._writeStore();
+      this.customAdd.show = false;
+    },
+
+    // [Type A] 커스텀 장소 Day에서 제거 (customPlaces dict에는 잔류)
+    removeCustomPlace(n, id) {
+      if (!this.store.days[n] || !this.store.days[n].customItems) return;
+      this.store.days[n].customItems = this.store.days[n].customItems.filter(i => i !== id);
+      this._writeStore();
+    },
+
+    // [Type B] 할 일 저장
+    submitTodo() {
+      const text = this.customAdd.inputText.trim();
+      const n = this.customAdd.targetDay;
+      if (!text || !n) return;
+
+      if (!this.store.days[n]) this.store.days[n] = { activities: [] };
+      if (!this.store.days[n].todos) this.store.days[n].todos = [];
+      this.store.days[n].todos.push({
+        id: 'todo_' + Date.now().toString(36),
+        text,
+        done: false,
+        createdAt: Date.now()
+      });
+
+      this._writeStore();
+      this.customAdd.inputText = '';
+      this.customAdd.show = false;
+    },
+
+    // [Type B] 할 일 체크 토글
+    toggleTodo(n, id) {
+      const todos = this.store.days[n] && this.store.days[n].todos;
+      if (!todos) return;
+      const t = todos.find(x => x.id === id);
+      if (t) { t.done = !t.done; this._writeStore(); }
+    },
+
+    // [Type B] 할 일 삭제
+    deleteTodo(n, id) {
+      if (!this.store.days[n] || !this.store.days[n].todos) return;
+      this.store.days[n].todos = this.store.days[n].todos.filter(t => t.id !== id);
+      this._writeStore();
+    },
+
+    // 해당 Day의 할 일 목록
+    dayTodos(n) {
+      return (this.store.days[n] && this.store.days[n].todos) || [];
+    },
+
+    // Butler 채팅 메시지 → 일정 추가 모달 진입
+    openAddFromButler(dayNum) {
+      // dayNum이 없으면 오늘 또는 첫 번째 일차 폴백
+      const fallback = (this.cd && this.cd.tripDay) || 1;
+      this.openCustomAdd(dayNum || fallback, 'place');
+      this.butlerSheet = false; // 시트 닫고 모달로 진입
+    },
+
     async fetchCurrency() {
       try {
         const res = await fetch('https://api.frankfurter.dev/v1/latest?base=GBP&symbols=KRW', { cache: 'no-cache' });
@@ -701,7 +866,13 @@ function tripApp() {
     // ---- 활동 (선택/저장) ----
     dayActivities(n) {
       const ids = (this.store.days[n] && this.store.days[n].activities) || [];
-      return ids.map(id => this.activities.find(a => a.id === id)).filter(Boolean);
+      const curated = ids.map(id => this.activities.find(a => a.id === id)).filter(Boolean);
+      // F40: 커스텀 장소도 일정에 포함
+      const customIds = (this.store.days[n] && this.store.days[n].customItems) || [];
+      const custom = customIds
+        .map(id => (this.store.customPlaces || {})[id])
+        .filter(Boolean);
+      return [...curated, ...custom];
     },
     isAdded(n, id) {
       return !!((this.store.days[n] && this.store.days[n].activities) || []).includes(id);
@@ -734,8 +905,12 @@ function tripApp() {
       return 'background: linear-gradient(135deg, ' + c + ', ' + c + '99);';
     },
 
-    // 카드 조회
-    card() { return this.activities.find(a => a.id === this.cardId) || {}; },
+    // 카드 조회 (큐레이션 → F40 커스텀 fallback)
+    card() {
+      return this.activities.find(a => a.id === this.cardId)
+          || (this.store.customPlaces || {})[this.cardId]
+          || {};
+    },
 
     // ---- 액션 ----
     openMap(a) {
