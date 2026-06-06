@@ -12,7 +12,8 @@ window.TripStorage = (function () {
       items: []        // { id, date, category, amount, memo, createdAt }
     },
     diary: {},         // { "3": { text, createdAt } }
-    customPlaces: {}   // F40: { "custom_xxx": { id, name, nameKo, emoji, ..., isCustom:true } }
+    customPlaces: {},  // F40: { "custom_xxx": { id, name, nameKo, emoji, ..., isCustom:true } }
+    customChecklistItems: []  // F41: [{ id:'ck_xxx', label, note }]
   });
 
   function read() {

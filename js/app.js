@@ -127,6 +127,9 @@ function tripApp() {
       errorMsg: ''
     },
 
+    // F41: 체크리스트 커스텀 항목 입력
+    checkInput: { label: '', note: '' },
+
     // Butler AI
     butlerMessages: [],
     butlerInput: '',
@@ -309,7 +312,7 @@ function tripApp() {
     // Firebase → 로컬 병합 (필드별, 다른 필드만 교체)
     _mergeFromFirebase(remote) {
       let changed = false;
-      ['days', 'expenses', 'diary', 'checklist', 'customPlaces'].forEach(f => {
+      ['days', 'expenses', 'diary', 'checklist', 'customPlaces', 'customChecklistItems'].forEach(f => {
         if (remote[f] === undefined) return;
         const remoteStr = JSON.stringify(remote[f]);
         if (remoteStr !== JSON.stringify(this.store[f] ?? null)) {
@@ -331,7 +334,7 @@ function tripApp() {
       this.sync.status = 'syncing';
       this._syncTimer = setTimeout(() => {
         const updates = {};
-        ['days', 'expenses', 'diary', 'checklist', 'customPlaces'].forEach(f => {
+        ['days', 'expenses', 'diary', 'checklist', 'customPlaces', 'customChecklistItems'].forEach(f => {
           const cur = JSON.stringify(this.store[f] ?? null);
           if (cur !== this._lastPushed[f]) {
             updates[f] = this.store[f] ?? null;
@@ -759,6 +762,33 @@ function tripApp() {
       this._writeStore();
     },
 
+    // ──────────────────────────────────────────────
+    // F41: 커스텀 체크리스트 항목
+    // ──────────────────────────────────────────────
+    addCustomCheckItem() {
+      const label = this.checkInput.label.trim();
+      if (!label) return;
+      if (!this.store.customChecklistItems) this.store.customChecklistItems = [];
+      this.store.customChecklistItems.push({
+        id: 'ck_' + Date.now().toString(36),
+        label,
+        note: this.checkInput.note.trim()
+      });
+      this.checkInput = { label: '', note: '' };
+      this._writeStore();
+    },
+
+    deleteCustomCheckItem(id) {
+      this.store.customChecklistItems = (this.store.customChecklistItems || []).filter(i => i.id !== id);
+      // 체크 상태도 함께 삭제
+      delete this.store.checklist[id];
+      this._writeStore();
+    },
+
+    customCheckItems() {
+      return this.store.customChecklistItems || [];
+    },
+
     // 해당 Day의 할 일 목록
     dayTodos(n) {
       return (this.store.days[n] && this.store.days[n].todos) || [];
@@ -949,7 +979,13 @@ function tripApp() {
       this._writeStore();
     },
     checkProgress() {
-      const all = this.checklist.flatMap(c => c.items.map(i => i.id));
+      // F41: '여행 중 매일' 카테고리는 반복 루틴이라 전체 진행률에서 제외 + 커스텀 항목 포함
+      const excluded = ['여행 중 매일'];
+      const allBuiltIn = this.checklist
+        .filter(c => !excluded.includes(c.category))
+        .flatMap(c => c.items.map(i => i.id));
+      const allCustom = (this.store.customChecklistItems || []).map(i => i.id);
+      const all = [...allBuiltIn, ...allCustom];
       if (!all.length) return 0;
       const done = all.filter(id => this.store.checklist[id]).length;
       return Math.round(done / all.length * 100);

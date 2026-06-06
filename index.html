@@ -746,6 +746,64 @@
           </div>
         </div>
       </template>
+
+      <!-- ── F41: 나만의 목록 ── -->
+      <div class="section-title">✏️ 나만의 목록</div>
+
+      <!-- 커스텀 항목 목록 -->
+      <template x-if="customCheckItems().length > 0">
+        <div class="card" style="padding:6px 16px; margin-bottom:8px;">
+          <template x-for="it in customCheckItems()" :key="it.id">
+            <div class="check-row" style="align-items:flex-start;">
+              <div style="padding-top:2px;" @click="toggleCheck(it.id)">
+                <div class="check-box" :class="{ done: isChecked(it.id) }" x-text="isChecked(it.id) ? '✓' : ''"></div>
+              </div>
+              <div style="flex:1;" @click="toggleCheck(it.id)">
+                <div class="check-label" :class="{ done: isChecked(it.id) }" x-text="it.label"></div>
+                <div x-show="it.note" class="check-note" x-text="it.note"></div>
+              </div>
+              <button @click="deleteCustomCheckItem(it.id)"
+                      style="background:none; border:none; color:var(--text-light);
+                             font-size:16px; cursor:pointer; padding:8px 4px; flex-shrink:0;">✕</button>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- 빈 상태 -->
+      <template x-if="customCheckItems().length === 0">
+        <div style="font-size:13px; color:var(--text-light); text-align:center; padding:12px 0;">
+          직접 추가한 항목이 없어요
+        </div>
+      </template>
+
+      <!-- 항목 추가 입력 -->
+      <div class="card" style="padding:14px 16px;">
+        <div style="font-size:12px; font-weight:700; color:var(--text-secondary); margin-bottom:10px;">➕ 항목 추가</div>
+        <input
+          type="text"
+          placeholder="예: 킹스크로스 9¾ 플랫폼 사진 찍기"
+          x-model="checkInput.label"
+          @keydown.enter="$refs.checkNote.focus()"
+          style="width:100%; box-sizing:border-box; padding:11px 12px; border-radius:10px;
+                 border:1.5px solid var(--border); background:var(--bg-section);
+                 font-size:14px; color:var(--text-primary); outline:none; margin-bottom:8px;">
+        <input
+          type="text"
+          placeholder="메모 (선택사항)"
+          x-model="checkInput.note"
+          x-ref="checkNote"
+          @keydown.enter="addCustomCheckItem()"
+          style="width:100%; box-sizing:border-box; padding:11px 12px; border-radius:10px;
+                 border:1.5px solid var(--border); background:var(--bg-section);
+                 font-size:13px; color:var(--text-primary); outline:none; margin-bottom:10px;">
+        <button class="btn btn-primary btn-block"
+                :disabled="!checkInput.label.trim()"
+                @click="addCustomCheckItem()"
+                style="width:100%; padding:13px;">
+          추가하기
+        </button>
+      </div>
     </section>
 
     <!-- ============ 도구 ============ -->

@@ -1,43 +1,77 @@
 [
   {
-    "category": "출국 전 (D-30~D-7)",
+    "category": "출국 전 서류·예약 (D-30~D-7)",
     "emoji": "📋",
     "items": [
-      { "id": "eta", "label": "영국 ETA 전자여행허가 신청", "note": "가족 3인 모두" },
-      { "id": "passport", "label": "여권 유효기간 6개월 이상 확인", "note": "" },
-      { "id": "insurance", "label": "여행자 보험 가입", "note": "" },
-      { "id": "fraser_refund", "label": "Fraser 환불 확인", "note": "" },
-      { "id": "wimbledon_print", "label": "윔블던 투어 바우처 저장", "note": "Day 2 14:30" }
+      { "id": "eta",              "label": "영국 ETA 전자여행허가 신청",          "note": "가족 3인, 비용 £10/인" },
+      { "id": "passport",         "label": "여권 유효기간 6개월 이상 확인",        "note": "가족 3인 모두" },
+      { "id": "insurance",        "label": "여행자 보험 가입",                   "note": "의료 + 휴행품 포함" },
+      { "id": "eticket",          "label": "항공권 e-티켓 저장",                 "note": "KE908 인천-런던" },
+      { "id": "hotel_confirm",    "label": "호텔 예약 확인서 저장",               "note": "Citadines Holborn / Royal Horseguards" },
+      { "id": "wimbledon_print",  "label": "윔블던 투어 바우처 저장",             "note": "Day 2 14:30" },
+      { "id": "fraser_refund",    "label": "Fraser 환불 확인",                   "note": "" },
+      { "id": "card_activate",    "label": "해외 카드 결제 활성화 확인",           "note": "비자/마스터, 1일 한도 확인" },
+      { "id": "embassy_contact",  "label": "주영 한국대사관 긴급연락처 저장",       "note": "+44-20-7227-5500" },
+      { "id": "doc_backup",       "label": "여권·항공권·보험 사본 클라우드 저장",   "note": "카카오톡 나에게 보내기 등" },
+      { "id": "museum_reserve",   "label": "사전 예약 명소 예약 완료 확인",         "note": "대영박물관 무료, 버킹엄궁 등 유료 사전예약" }
     ]
   },
   {
-    "category": "출국 직전 (D-3~D-1)",
+    "category": "짐 챙기기 (D-3~D-1)",
     "emoji": "🧳",
     "items": [
-      { "id": "esim", "label": "eSIM / 데이터 로밍 준비", "note": "" },
-      { "id": "adapter", "label": "영국 G타입 멀티 어댑터", "note": "" },
-      { "id": "cash", "label": "파운드 환전 (£200 내외)", "note": "마켓 현금 대비" },
-      { "id": "oyster", "label": "Oyster/컨택리스 카드 확인", "note": "튜브·버스" },
-      { "id": "weather_check", "label": "런던 날씨 확인 + 우산", "note": "6월도 비 잦음" },
-      { "id": "meds", "label": "상비약 챙기기", "note": "" }
+      { "id": "esim",             "label": "eSIM / 데이터 로밍 준비·테스트",       "note": "현지 도착 즉시 개통" },
+      { "id": "adapter",          "label": "영국 G타입 멀티 어댑터",              "note": "소켓 3발, 220V" },
+      { "id": "cash",             "label": "파운드 환전 (£200~300 내외)",         "note": "마켓·소규모 카페 현금 대비" },
+      { "id": "oyster",           "label": "Oyster / 컨택리스 카드 확인",         "note": "튜브·버스, 잔액 £20+ 권장" },
+      { "id": "umbrella",         "label": "우산 또는 경량 우비",                 "note": "런던 6월도 잦은 비" },
+      { "id": "shoes",            "label": "편한 운동화 (충분한 쿠션)",            "note": "하루 15,000~20,000보 예상" },
+      { "id": "camera",           "label": "카메라 + 충전기 + 여분 SD카드",        "note": "" },
+      { "id": "powerbank",        "label": "보조배터리",                          "note": "기내 반입용, 100Wh 이하" },
+      { "id": "sunscreen",        "label": "선크림",                             "note": "6월 자외선 강함" },
+      { "id": "clothes_layer",    "label": "겉옷 레이어링 준비",                   "note": "런던 6월 평균 18-20°C, 실내 냉방 강함" },
+      { "id": "toiletries",       "label": "세면도구 (기내 100ml 이하)",           "note": "지퍼백 포장" },
+      { "id": "meds",             "label": "상비약 챙기기",                       "note": "소화제·진통제·밴드·감기약" },
+      { "id": "kids_items",       "label": "자녀 필수품 확인",                    "note": "이어폰, 책/태블릿, 간식" }
     ]
   },
   {
     "category": "도착 후",
     "emoji": "🛬",
     "items": [
-      { "id": "hotel_checkin", "label": "Citadines Holborn 체크인", "note": "Day 1" },
-      { "id": "data_on", "label": "데이터/eSIM 활성화 확인", "note": "" },
-      { "id": "tube_card", "label": "튜브 카드 작동 테스트", "note": "" }
+      { "id": "hotel_checkin",    "label": "Citadines Holborn 체크인",           "note": "Day 1" },
+      { "id": "data_on",          "label": "데이터/eSIM 활성화 확인",             "note": "가족 3인 모두" },
+      { "id": "tube_card",        "label": "튜브 카드 작동 테스트",               "note": "" },
+      { "id": "emergency_plan",   "label": "가족 비상 집결 장소 약속",             "note": "분리 시 만날 곳 (예: 호텔 로비)" },
+      { "id": "cash_spot",        "label": "현금 보관 장소 분산",                 "note": "지갑·가방 등 두 곳에 나눠" },
+      { "id": "offline_map",      "label": "구글 지도 오프라인 다운로드",           "note": "런던 구역 선택 저장" },
+      { "id": "app_install",      "label": "TfL Go / Citymapper 앱 설치",        "note": "실시간 튜브 안내" }
+    ]
+  },
+  {
+    "category": "여행 중 매일",
+    "emoji": "📅",
+    "items": [
+      { "id": "daily_plan",       "label": "전날 밤 다음날 일정 확인",             "note": "이 앱 Day 화면 확인" },
+      { "id": "weather_check2",   "label": "당일 날씨 확인",                     "note": "이 앱 홈 화면 날씨 위젯" },
+      { "id": "photo_backup",     "label": "사진 정기 백업",                     "note": "구글 포토 자동 업로드" },
+      { "id": "diary_write",      "label": "여행 일기 작성",                     "note": "이 앱 Day → 일기" },
+      { "id": "budget_log",       "label": "당일 지출 기록",                     "note": "이 앱 예산 탭" },
+      { "id": "receipt_keep",     "label": "택스 리펀 영수증 보관",               "note": "£30 이상 구매 시 GBP 환급 가능" }
     ]
   },
   {
     "category": "귀국",
     "emoji": "✈️",
     "items": [
-      { "id": "tax_refund", "label": "택스 리펀 (해롯 등) 처리", "note": "공항 전 서류" },
-      { "id": "checkout2", "label": "Royal Horseguards 체크아웃", "note": "Day 8" },
-      { "id": "airport_early", "label": "공항 3시간 전 도착", "note": "LHR 19:35 KE908" }
+      { "id": "tax_refund",       "label": "택스 리펀 (VAT환급) 서류 처리",       "note": "공항 세관 도착 전, 해롯 등" },
+      { "id": "duty_free_limit",  "label": "면세 한도 확인",                     "note": "1인당 $800 (한국 기준)" },
+      { "id": "luggage_weight",   "label": "수하물 무게 측정",                   "note": "위탁 수하물 규정 초과 주의" },
+      { "id": "souvenir_pack",    "label": "기념품 포장 (파손 방지)",             "note": "옷으로 감싸거나 뽁뽁이" },
+      { "id": "checkout2",        "label": "Royal Horseguards 체크아웃",          "note": "Day 8" },
+      { "id": "passport_check",   "label": "출국 전 소지품 최종 확인",            "note": "여권·지갑·핸드폰·충전기" },
+      { "id": "airport_early",    "label": "공항 3시간 전 도착",                  "note": "LHR 19:35 KE908" },
+      { "id": "checkin_online",   "label": "온라인 체크인 (출발 24시간 전)",       "note": "대한항공 앱 또는 웹" }
     ]
   }
 ]
