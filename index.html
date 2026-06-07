@@ -580,8 +580,23 @@
               <div class="a-reason" x-text="a.curatedReason"></div>
               <div class="btn-row" style="margin-top:12px;">
                 <button class="btn btn-sm btn-outline" @click="goCard(a.id)">상세 →</button>
-                <button x-show="!isAdded(dayNum, a.id)" class="btn btn-sm btn-primary" @click="toggleActivity(dayNum, a.id)">오늘에 추가 +</button>
-                <button x-show="isAdded(dayNum, a.id)" class="btn btn-sm btn-warm" @click="toggleActivity(dayNum, a.id)">✓ 추가됨</button>
+                <!-- F42: 큐레이션은 activities 배열, 커스텀은 customItems 배열을 토글 -->
+                <template x-if="!a.isCustom">
+                  <button x-show="!isAdded(dayNum, a.id)" class="btn btn-sm btn-primary"
+                          @click="toggleActivity(dayNum, a.id)">오늘에 추가 +</button>
+                </template>
+                <template x-if="!a.isCustom">
+                  <button x-show="isAdded(dayNum, a.id)" class="btn btn-sm btn-warm"
+                          @click="toggleActivity(dayNum, a.id)">✓ 추가됨</button>
+                </template>
+                <template x-if="a.isCustom">
+                  <button x-show="!isCustomAdded(dayNum, a.id)" class="btn btn-sm btn-primary"
+                          @click="toggleCustomActivity(dayNum, a.id)">오늘에 추가 +</button>
+                </template>
+                <template x-if="a.isCustom">
+                  <button x-show="isCustomAdded(dayNum, a.id)" class="btn btn-sm btn-warm"
+                          @click="toggleCustomActivity(dayNum, a.id)">✓ 추가됨</button>
+                </template>
               </div>
             </div>
           </div>
@@ -809,6 +824,22 @@
     <!-- ============ 도구 ============ -->
     <section x-show="view === 'tools'" class="app-view">
       <div class="section-title" style="margin-top:0;">🛠️ 도구</div>
+
+      <!-- F42: 전역 장소 찾기 (도구 최상단) -->
+      <div class="card" style="padding:16px; margin-bottom:16px; cursor:pointer;"
+           @click="openCustomAdd(null, 'place')">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <span style="font-size:32px;">🔍</span>
+          <div style="flex:1;">
+            <div style="font-size:15px; font-weight:700;">장소 찾기</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
+              가고 싶은 곳을 검색하면 Butler가 정보를 찾고<br>
+              Zone 저장 또는 일정 자동 추천까지 해줍니다
+            </div>
+          </div>
+          <span style="color:var(--text-light); font-size:20px;">›</span>
+        </div>
+      </div>
 
       <!-- ▸ 골든벨 진입 카드 (홈 → 도구로 이동) -->
       <div class="golden-bell-entry card" @click="go('/game')">
@@ -1628,10 +1659,12 @@
         <div style="width:100%; max-height:85vh; overflow-y:auto;
                     background:var(--bg-card); border-radius:20px 20px 0 0; padding:20px 16px 32px;">
 
-          <!-- 헤더 -->
+          <!-- 헤더 (F42: 상황별 타이틀 — 일정 확인 단계만 Day 표시, 그 외엔 '장소 찾기') -->
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
             <div style="font-size:15px; font-weight:800;">
-              Day <span x-text="customAdd.targetDay"></span>에 추가
+              <span x-show="customAdd.step === 'day-confirm'">Day <span x-text="customAdd.selectedDay"></span>에 추가</span>
+              <span x-show="customAdd.step !== 'day-confirm' && customAdd.targetDay && customAdd.type === 'todo'">Day <span x-text="customAdd.targetDay"></span>에 추가</span>
+              <span x-show="customAdd.step !== 'day-confirm' && (customAdd.type === 'place' || !customAdd.targetDay)">장소 찾기</span>
             </div>
             <button @click="closeCustomAdd()"
                     style="background:none; border:none; font-size:22px; color:var(--text-light); cursor:pointer;">✕</button>
@@ -1686,38 +1719,104 @@
             </div>
           </template>
 
-          <!-- STEP 3: 미리보기 -->
+          <!-- STEP 3: 미리보기 + 저장 방식 선택 (F42 — 두 갈래) -->
           <template x-if="customAdd.step === 'preview' && customAdd.preview">
             <div>
-              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">아래 정보를 확인하고 추가하세요</div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">장소 정보를 확인하고 저장 방식을 선택하세요</div>
+
+              <!-- 카드 미리보기 -->
               <div style="background:var(--bg-section); border-radius:14px; padding:16px; margin-bottom:16px;">
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
-                  <span style="font-size:32px;" x-text="customAdd.preview.emoji"></span>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                  <span style="font-size:30px;" x-text="customAdd.preview.emoji"></span>
                   <div>
-                    <div style="font-size:16px; font-weight:800;" x-text="customAdd.preview.nameKo || customAdd.preview.name"></div>
-                    <div style="font-size:12px; color:var(--text-light);" x-text="customAdd.preview.name"></div>
+                    <div style="font-size:15px; font-weight:800;" x-text="customAdd.preview.nameKo || customAdd.preview.name"></div>
+                    <div style="font-size:11px; color:var(--text-light);" x-text="customAdd.preview.name"></div>
+                    <div style="font-size:11px; color:var(--primary); font-weight:700; margin-top:2px;"
+                         x-text="'Zone ' + (customAdd.preview.zone || '?') + ' · ' + (zones.find(z => z.id === customAdd.preview.zone) ? zones.find(z => z.id === customAdd.preview.zone).nameKo : '')"></div>
                   </div>
                 </div>
-                <div style="display:flex; flex-direction:column; gap:5px; font-size:12px; margin-bottom:10px;">
-                  <div><span style="color:var(--text-light);">📍</span> <span x-text="customAdd.preview.address || '주소 정보 없음'"></span></div>
+                <div style="display:flex; flex-direction:column; gap:4px; font-size:12px; margin-bottom:10px;">
+                  <div><span style="color:var(--text-light);">📍</span> <span x-text="customAdd.preview.address || '주소 없음'"></span></div>
                   <div><span style="color:var(--text-light);">🚇</span> <span x-text="customAdd.preview.nearestTube || '-'"></span></div>
                   <div x-show="customAdd.preview.hours"><span style="color:var(--text-light);">🕐</span> <span x-text="customAdd.preview.hours"></span></div>
                   <div x-show="customAdd.preview.price"><span style="color:var(--text-light);">💷</span> <span x-text="customAdd.preview.price"></span></div>
-                  <div x-show="customAdd.preview.duration"><span style="color:var(--text-light);">⏱️</span> <span x-text="customAdd.preview.duration"></span></div>
                 </div>
-                <div style="font-size:13px; color:var(--text-secondary); line-height:1.6;"
-                     x-text="customAdd.preview.curatedReason"></div>
+                <div style="font-size:12px; color:var(--text-secondary); line-height:1.6;" x-text="customAdd.preview.curatedReason"></div>
                 <template x-if="customAdd.preview.coordinates && customAdd.preview.coordinates.lat">
                   <a :href="'https://www.google.com/maps/search/' + encodeURIComponent(customAdd.preview.name || customAdd.preview.nameKo)"
                      target="_blank"
-                     style="display:inline-block; margin-top:10px; font-size:12px; color:var(--primary);">
+                     style="display:inline-block; margin-top:8px; font-size:12px; color:var(--primary);">
                     🗺️ 구글 지도에서 위치 확인 →
                   </a>
                 </template>
               </div>
+
+              <!-- 저장 방식 선택 -->
+              <div style="font-size:12px; font-weight:700; color:var(--text-secondary); margin-bottom:10px;">어떻게 저장할까요?</div>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <button @click="confirmZoneSave()"
+                        style="text-align:left; padding:14px 16px; border-radius:14px;
+                               border:2px solid var(--border); background:var(--bg-card); cursor:pointer;">
+                  <div style="font-size:14px; font-weight:700; margin-bottom:4px;">📌 Zone 카드에 저장</div>
+                  <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;">
+                    Zone <span x-text="customAdd.preview.zone || '?'"></span> 탐색 목록에 추가됩니다.<br>
+                    나중에 탐색하다가 원하는 날에 직접 추가할 수 있어요.
+                  </div>
+                </button>
+                <button @click="startDayAdd()"
+                        style="text-align:left; padding:14px 16px; border-radius:14px;
+                               border:2px solid var(--primary); background:var(--primary-light); cursor:pointer;">
+                  <div style="font-size:14px; font-weight:700; color:var(--primary); margin-bottom:4px;">📅 일정에 바로 추가</div>
+                  <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;">
+                    AI가 8일 일정을 분석해서 동선이 가장 맞는 날을 추천합니다.
+                  </div>
+                </button>
+              </div>
+              <button class="btn btn-outline" style="width:100%; margin-top:12px;" @click="customAdd.step = 'input'">← 다시 입력</button>
+            </div>
+          </template>
+
+          <!-- STEP 3-b: 날짜 추천 분석 중 (F42) -->
+          <template x-if="customAdd.step === 'recommending'">
+            <div style="text-align:center; padding:40px 0;">
+              <div class="butler-loading-dots" style="justify-content:center; margin-bottom:14px;">
+                <span></span><span></span><span></span>
+              </div>
+              <div style="font-size:14px; color:var(--text-secondary);">8일 일정과 동선을 분석하는 중...</div>
+              <div style="font-size:12px; color:var(--text-light); margin-top:6px;">잠시만 기다려 주세요</div>
+            </div>
+          </template>
+
+          <!-- STEP 4: 날짜 확인 (F42) -->
+          <template x-if="customAdd.step === 'day-confirm' && customAdd.preview">
+            <div>
+              <div style="background:var(--primary-light); border-radius:12px; padding:14px 16px; margin-bottom:14px;">
+                <div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:6px;">🗓️ 추천 날짜</div>
+                <div style="font-size:15px; font-weight:800; margin-bottom:4px;">
+                  Day <span x-text="customAdd.recommendedDay"></span>
+                  <span style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-left:4px;"
+                        x-text="days.find(d => d.day === customAdd.recommendedDay) ? '— ' + days.find(d => d.day === customAdd.recommendedDay).concept : ''"></span>
+                </div>
+                <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;" x-text="customAdd.dayReason"></div>
+              </div>
+
+              <div style="margin-bottom:16px;">
+                <div style="font-size:12px; color:var(--text-light); margin-bottom:6px;">다른 날 선택:</div>
+                <select x-model.number="customAdd.selectedDay"
+                        style="width:100%; padding:11px 12px; border-radius:10px; border:1.5px solid var(--border);
+                               background:var(--bg-section); font-size:14px; color:var(--text-primary); outline:none;">
+                  <template x-for="d in days" :key="d.day">
+                    <option :value="d.day"
+                            x-text="'Day ' + d.day + ' (' + d.date.slice(5).replace('-','/') + ') — ' + d.concept"
+                            :selected="customAdd.selectedDay === d.day"></option>
+                  </template>
+                </select>
+              </div>
+
               <div style="display:flex; gap:10px;">
-                <button class="btn btn-outline" style="flex:1;" @click="customAdd.step = 'input'">← 다시 입력</button>
-                <button class="btn btn-primary" style="flex:2;" @click="confirmCustomPlace()">✅ 일정에 추가</button>
+                <button class="btn btn-outline" style="flex:1;" @click="customAdd.step = 'preview'">← 뒤로</button>
+                <button class="btn btn-primary" style="flex:2;" @click="confirmDayAdd()"
+                        x-text="'Day ' + customAdd.selectedDay + '에 추가 ✅'"></button>
               </div>
             </div>
           </template>
@@ -1733,6 +1832,17 @@
           </template>
 
         </div>
+      </div>
+    </template>
+
+    <!-- ════ F42: 토스트 알림 ════ -->
+    <template x-if="toast.show">
+      <div style="position:fixed; bottom:76px; left:50%; transform:translateX(-50%);
+                  background:#2B2724; color:#FAF6F0; padding:12px 20px;
+                  border-radius:12px; font-size:13px; font-weight:600;
+                  z-index:1000; white-space:nowrap;
+                  box-shadow:0 4px 16px rgba(0,0,0,0.25);">
+        <span x-text="toast.msg"></span>
       </div>
     </template>
 

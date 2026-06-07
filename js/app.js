@@ -116,16 +116,25 @@ function tripApp() {
     // 위치 기반 주변 발견 (F39)
     nearby: { loading: false, items: [], error: null, myLat: null, myLng: null },
 
-    // F40: 커스텀 장소/할 일 추가 (Butler 웹검색으로 카드 자동 생성)
+    // F40/F42: 커스텀 장소/할 일 추가 (Butler 웹검색 + Zone 판별 + AI 날짜 추천)
     customAdd: {
       show: false,
-      step: 'input',      // 'input' | 'enriching' | 'preview' | 'error'
-      targetDay: null,    // 추가할 일차 번호
+      step: 'input',         // 'input' | 'enriching' | 'preview' | 'recommending' | 'day-confirm' | 'error'
+      targetDay: null,       // Day 화면에서 진입 시 대상 일차
       inputText: '',
-      type: 'place',      // 'place' | 'todo'
-      preview: null,      // Butler가 반환한 카드 데이터 (Type A)
-      errorMsg: ''
+      type: 'place',         // 'place' | 'todo'
+      preview: null,         // Butler가 반환한 카드 데이터 (zone 포함)
+      errorMsg: '',
+      // F42 추가
+      recommendedDay: null,  // Butler가 추천한 날 (숫자)
+      dayReason: '',         // 추천 이유 한 줄
+      selectedDay: null,     // 사용자가 최종 선택한 날
+      dayLoading: false,     // 날짜 추천 로딩 중
+      saveMode: null         // 'zone' | 'day' (분기 추적)
     },
+
+    // F42: 토스트 알림
+    toast: { show: false, msg: '' },
 
     // F41: 체크리스트 커스텀 항목 입력
     checkInput: { label: '', note: '' },
@@ -665,8 +674,18 @@ function tripApp() {
   "price": "가격대 (£ 기준, 모르면 null)",
   "duration": "권장 체류·방문 시간 예: 1h, 30min",
   "curatedReason": "한국어로 2문장. 이 장소의 특징과 추천 이유.",
-  "tags": ["관련 태그 2~4개"]
+  "tags": ["관련 태그 2~4개"],
+  "zone": "A 또는 B 또는 C 또는 D 또는 E 또는 F 중 하나"
 }
+
+Zone 기준:
+A = Holborn / Covent Garden / Soho / 런던 중심부
+B = Westminster / Victoria / South Bank / 빅벤 구역
+C = Tower Bridge / Borough Market / London Bridge / East London
+D = Notting Hill / Portobello / Kensington
+E = Knightsbridge / Chelsea / Harrods 구역
+F = 런던 외곽 (Oxford 등 당일치기)
+확실하지 않으면 가장 가까운 구역으로 추정. 기본값 "A".
 
 좌표는 실제 주소의 정확한 위도/경도. 확실하지 않으면 null.`;
 
@@ -714,7 +733,7 @@ function tripApp() {
       }
     },
 
-    // [Type A] 장소 확정 저장
+    // [Type A] 장소 확정 저장 (F40 — Day 화면 진입 시 직접 저장 경로, F42 이후엔 분기 신규 함수 우선)
     confirmCustomPlace() {
       const card = this.customAdd.preview;
       const n = this.customAdd.targetDay;
@@ -731,6 +750,115 @@ function tripApp() {
 
       this._writeStore();
       this.customAdd.show = false;
+    },
+
+    // ──────────────────────────────────────────────
+    // F42: 분기 — Zone 카드 저장 / 일정 바로 추가(AI 날짜 추천)
+    // ──────────────────────────────────────────────
+
+    // [F42] Zone 카드에만 저장 (특정 Day에 미배정 — 나중에 탐색에서 추가)
+    confirmZoneSave() {
+      const card = this.customAdd.preview;
+      if (!card) return;
+      if (!this.store.customPlaces) this.store.customPlaces = {};
+      this.store.customPlaces[card.id] = card;
+      this._writeStore();
+
+      const zid = card.zone || 'A';
+      const zObj = this.zones.find(z => z.id === zid);
+      const zName = zObj ? zObj.nameKo : zid;
+      this.showToast('📌 Zone ' + zid + ' · ' + zName + '에 저장됐어요');
+
+      this.customAdd.show = false;
+      // 해당 Zone 탐색 화면으로 이동
+      this.zoneId = zid;
+      this.dayNum = (this.cd && this.cd.tripDay) || this.dayNum || 1;
+      this.view = 'zone';
+    },
+
+    // [F42] 일정 바로 추가 — Butler에게 8일 일정 + 새 장소로 동선상 최적 날 추천 요청
+    async startDayAdd() {
+      const card = this.customAdd.preview;
+      if (!card) return;
+      this.customAdd.step = 'recommending';
+      this.customAdd.dayLoading = true;
+
+      const daySummaries = this.days.map(d => {
+        const acts = this.dayActivities(d.day).map(a => a.nameKo || a.name);
+        return `Day ${d.day} (${d.date}, ${d.concept}): ${acts.length ? acts.join(', ') : '일정 없음'}`;
+      }).join('\n');
+
+      const prompt = `황씨 가족 런던 여행 일정에 새 장소를 추가하려 한다. 동선이 가장 효율적인 날을 추천해줘.
+
+추가할 장소:
+- 이름: ${card.nameKo || card.name}
+- 주소: ${card.address || ''}
+- 구역: Zone ${card.zone || '?'}
+- 유형: ${card.type}
+
+현재 8일 여행 일정:
+${daySummaries}
+
+가장 동선이 효율적인 날 하나를 추천하고 이유를 한 문장(한국어)으로 설명해줘.
+JSON으로만 반환. 다른 텍스트 없음:
+{"bestDay": 숫자, "reason": "추천 이유"}`;
+
+      try {
+        const res = await fetch('/.netlify/functions/butler', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: prompt, context: {}, taskType: 'general', useWebSearch: false })
+        });
+        const data = await res.json();
+        // 두 형태(answer 문자열 vs 응답 루트가 객체) 모두 처리 (F40 fix 유사)
+        let result = null;
+        if (data && (typeof data.bestDay === 'number' || typeof data.bestDay === 'string')) {
+          result = data;
+        } else {
+          const raw = (data.answer || data.intro || '')
+            .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+          if (s >= 0 && e > s) result = JSON.parse(raw.slice(s, e + 1));
+        }
+        const best = Number(result && result.bestDay);
+        if (!Number.isFinite(best) || best < 1 || best > this.days.length) throw new Error('invalid bestDay');
+        this.customAdd.recommendedDay = best;
+        this.customAdd.selectedDay    = best;
+        this.customAdd.dayReason      = (result && result.reason) || '';
+      } catch (e) {
+        console.warn('[F42] 날짜 추천 실패 → 폴백', e);
+        const fallback = this.customAdd.targetDay || (this.cd && this.cd.tripDay) || 1;
+        this.customAdd.recommendedDay = fallback;
+        this.customAdd.selectedDay    = fallback;
+        this.customAdd.dayReason      = '날짜 추천에 실패했어요. 직접 선택해 주세요.';
+      } finally {
+        this.customAdd.dayLoading = false;
+        this.customAdd.step = 'day-confirm';
+      }
+    },
+
+    // [F42] 날짜 확정 후 일정에 추가
+    confirmDayAdd() {
+      const card = this.customAdd.preview;
+      const n = this.customAdd.selectedDay;
+      if (!card || !n) return;
+      if (!this.store.customPlaces) this.store.customPlaces = {};
+      this.store.customPlaces[card.id] = card;
+      if (!this.store.days[n]) this.store.days[n] = { activities: [] };
+      if (!this.store.days[n].customItems) this.store.days[n].customItems = [];
+      if (!this.store.days[n].customItems.includes(card.id)) {
+        this.store.days[n].customItems.push(card.id);
+      }
+      this._writeStore();
+      this.showToast('📅 Day ' + n + ' 일정에 추가됐어요');
+      this.customAdd.show = false;
+    },
+
+    // [F42] 토스트 알림 (3초 자동 사라짐)
+    showToast(msg) {
+      this.toast = { show: true, msg };
+      clearTimeout(this._toastTimer);
+      this._toastTimer = setTimeout(() => { this.toast.show = false; }, 3000);
     },
 
     // [Type A] 커스텀 장소 Day에서 제거 (customPlaces dict에는 잔류)
@@ -929,10 +1057,27 @@ function tripApp() {
     },
 
     // Zone별 활동 (타입 필터 적용)
+    // F42: 큐레이션 + 커스텀 장소(저장된 customPlaces)를 같은 Zone 기준으로 합쳐 노출
     zoneActivities() {
-      return this.activities.filter(a =>
+      const curated = this.activities.filter(a =>
         a.zone === this.zoneId && (this.typeFilter === 'all' || a.type === this.typeFilter)
       );
+      const custom = Object.values(this.store.customPlaces || {}).filter(a =>
+        a.zone === this.zoneId && (this.typeFilter === 'all' || a.type === this.typeFilter)
+      );
+      return [...curated, ...custom];
+    },
+    // F42: 커스텀 장소용 Day 추가/제거 (큐레이션의 toggleActivity와 별도 — customItems 배열)
+    isCustomAdded(n, id) {
+      return !!((this.store.days[n] && this.store.days[n].customItems) || []).includes(id);
+    },
+    toggleCustomActivity(n, id) {
+      if (!this.store.days[n]) this.store.days[n] = { activities: [] };
+      if (!this.store.days[n].customItems) this.store.days[n].customItems = [];
+      const arr = this.store.days[n].customItems;
+      const i = arr.indexOf(id);
+      if (i >= 0) arr.splice(i, 1); else arr.push(id);
+      this._writeStore();
     },
     zoneObj(id) { return this.zones.find(z => z.id === id) || {}; },
     typeLabel(t) {
