@@ -67,6 +67,23 @@
         <div class="dday-sub" x-text="cd.sub"></div>
       </div>
 
+      <!-- F42 작업 9: 장소 찾기 (홈 상단 — 핵심 여행 액션. 스펙상 '골든벨 위'였으나
+           골든벨은 이전 결정으로 도구로 이동했으므로 D-day 직후가 동등한 최상단 자리) -->
+      <div class="card" style="padding:16px; margin-bottom:12px; cursor:pointer;"
+           @click="openCustomAdd(null, 'place')">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <span style="font-size:32px;">🔍</span>
+          <div style="flex:1;">
+            <div style="font-size:15px; font-weight:700;">장소 찾기</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
+              가고 싶은 곳을 검색하면 Butler가 정보를 찾고<br>
+              Zone 저장 또는 일정 자동 추천까지 해줍니다
+            </div>
+          </div>
+          <span style="color:var(--text-light); font-size:20px;">›</span>
+        </div>
+      </div>
+
       <!-- ▸ 여행 진행률 요약 카드 (탭 → 전체 대시보드) -->
       <div class="card" @click="go('/progress')" style="cursor:pointer; padding:14px 16px; margin-bottom:12px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -824,22 +841,6 @@
     <!-- ============ 도구 ============ -->
     <section x-show="view === 'tools'" class="app-view">
       <div class="section-title" style="margin-top:0;">🛠️ 도구</div>
-
-      <!-- F42: 전역 장소 찾기 (도구 최상단) -->
-      <div class="card" style="padding:16px; margin-bottom:16px; cursor:pointer;"
-           @click="openCustomAdd(null, 'place')">
-        <div style="display:flex; align-items:center; gap:14px;">
-          <span style="font-size:32px;">🔍</span>
-          <div style="flex:1;">
-            <div style="font-size:15px; font-weight:700;">장소 찾기</div>
-            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
-              가고 싶은 곳을 검색하면 Butler가 정보를 찾고<br>
-              Zone 저장 또는 일정 자동 추천까지 해줍니다
-            </div>
-          </div>
-          <span style="color:var(--text-light); font-size:20px;">›</span>
-        </div>
-      </div>
 
       <!-- ▸ 골든벨 진입 카드 (홈 → 도구로 이동) -->
       <div class="golden-bell-entry card" @click="go('/game')">
